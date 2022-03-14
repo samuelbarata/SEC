@@ -38,7 +38,7 @@ build/
 target/
 
 # IntelliJ IDEA
-.idea/
+# .idea/
 
 # VSCode
 .vscode/
