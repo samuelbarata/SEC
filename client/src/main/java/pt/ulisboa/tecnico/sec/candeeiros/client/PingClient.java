@@ -7,21 +7,25 @@ import pt.ulisboa.tecnico.sec.candeeiros.PingServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class PingClient {
+	private static final Logger logger = LoggerFactory.getLogger(PingClient.class);
 
 	public static void main(String[] args) {
-		System.out.println(PingClient.class.getSimpleName());
+		logger.info("Ping Client");
 
 		// receive and print arguments
-		System.out.printf("Received %d arguments%n", args.length);
+		logger.info("Received {} arguments", args.length);
 		for (int i = 0; i < args.length; i++) {
-			System.out.printf("arg[%d] = %s%n", i, args[i]);
+			logger.info("arg[{}] = {}", i, args[i]);
 		}
 
 		// check arguments
 		if (args.length < 2) {
-			System.err.println("Argument(s) missing!");
-			System.err.printf("Usage: java %s host port%n", PingClient.class.getName());
+			logger.error("Argument(s) missing!");
+			logger.error("Usage: java {} host port", PingClient.class.getName());
 			return;
 		}
 
@@ -44,12 +48,12 @@ public class PingClient {
 		// Finally, make the call using the stub
 		Ping.PingResponse response = stub.ping(request);
 
-		System.out.println("Sent " + contentToSend);
-		System.out.println("Received " + response.getContent() + "\n");
+		logger.info("Sent {}", contentToSend);
+		logger.info("Received {}", response.getContent());
 		if (contentToSend.equals(response.getContent().toString())) {
-			System.out.println("Strings match!\n");
+			logger.info("Strings match!");
 		} else {
-			System.out.println("Strings don't match!\n");
+			logger.error("Strings don't match!");
 		}
 
 		// A Channel should be shutdown before stopping the process.

@@ -3,25 +3,28 @@ package pt.ulisboa.tecnico.sec.candeeiros.server;
 import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PingServer {
+	private static final Logger logger = LoggerFactory.getLogger(PingServer.class);
 
 	/** Server host port. */
 	private static int port;
 
 	public static void main(String[] args) throws Exception {
-		System.out.println(PingServer.class.getSimpleName());
+		logger.info("Ping Server");
 
 		// Print received arguments.
-		System.out.printf("Received %d arguments%n", args.length);
+		logger.info("Received {} arguments", args.length);
 		for (int i = 0; i < args.length; i++) {
-			System.out.printf("arg[%d] = %s%n", i, args[i]);
+			logger.info("arg[{}] = {}", i, args[i]);
 		}
 
 		// Check arguments.
 		if (args.length < 1) {
-			System.err.println("Argument(s) missing!");
-			System.err.printf("Usage: java %s port%n", Server.class.getName());
+			logger.error("Argument(s) missing!");
+			logger.error("Usage: java {} port%n", Server.class.getName());
 			return;
 		}
 
@@ -33,7 +36,7 @@ public class PingServer {
 		// Start the server.
 		server.start();
 		// Server threads are running in the background.
-		System.out.println("Server started");
+		logger.info("Server started");
 
 		// Do not exit the main thread. Wait until server is terminated.
 		server.awaitTermination();
