@@ -23,8 +23,8 @@
 		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.client.BankClient</mainclass>
 		<server.host>localhost</server.host>
 		<server.port>8080</server.port>
-		<client.privatekey>./keys/id</client.privatekey>
-		<client.publickey>./keys/id.pub</client.publickey>
+		<client.privatekey>./keys/1/id</client.privatekey>
+		<client.publickey>./keys/1/id.pub</client.publickey>
 	</properties>
 
 	<!-- Dependencies are code archives - JARs - 

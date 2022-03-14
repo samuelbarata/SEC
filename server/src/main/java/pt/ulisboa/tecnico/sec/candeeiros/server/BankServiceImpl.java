@@ -33,7 +33,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			if (bank.tryCreateAccount(publicKey)) {
 				logger.info("Account created.");
 			} else {
-				logger.info("Public Key already associated with an account.");
+				logger.warn("Public Key already associated with an account.");
 				success = false;
 			}
 		} catch (InvalidKeySpecException e) {
