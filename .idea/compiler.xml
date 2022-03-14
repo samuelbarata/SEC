@@ -6,10 +6,10 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="candeeiros-server" />
-        <module name="candeeiros-shared" />
-        <module name="candeeiros-client" />
-        <module name="candeeiros-contract" />
+        <module name="bftb-server" />
+        <module name="bftb-shared" />
+        <module name="bftb-client" />
+        <module name="bftb-contract" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
