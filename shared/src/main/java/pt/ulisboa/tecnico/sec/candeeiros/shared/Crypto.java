@@ -5,11 +5,10 @@ package pt.ulisboa.tecnico.sec.candeeiros.shared;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.Key;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
@@ -17,11 +16,26 @@ import java.security.spec.X509EncodedKeySpec;
 public class Crypto {
 	private static final Logger logger = LoggerFactory.getLogger(Crypto.class);
 
-	public static Key readKeyOrExit(String resourcePath, String type) {
+	public static byte[] sign(byte[] plaintext, PrivateKey privateKey) throws SignatureException, InvalidKeyException {
+
+		Signature privateSignature = null;
 		try {
-			return readKey(resourcePath, type);
+			privateSignature = Signature.getInstance("SHA256withRSA");
+		} catch (NoSuchAlgorithmException e) {
+			// Should never happen
+			logger.error("Unreachable block: No such algorithm SHA256withRSA");
+			e.printStackTrace();
+		}
+		privateSignature.initSign(privateKey);
+		privateSignature.update(plaintext);
+		return privateSignature.sign();
+	}
+
+	public static Key readKeyOrExit(String keyPath, String type) {
+		try {
+			return readKey(keyPath, type);
 		} catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | NullPointerException e) {
-			logger.error("Could not read {} key in file {}:", type, resourcePath);
+			logger.error("Could not read {} key in file {}:", type, keyPath);
 			e.printStackTrace();
 			System.exit(1);
 			// For the compiler
@@ -29,9 +43,9 @@ public class Crypto {
 		}
 	}
 
-	public static Key readKey(String resourcePath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NullPointerException {
+	public static Key readKey(String keyPath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
 		byte[] encoded;
-		try (InputStream fis = Crypto.class.getClassLoader().getResourceAsStream(resourcePath)) {
+		try (FileInputStream fis = new FileInputStream(keyPath)) {
 			encoded = new byte[fis.available()];
 			fis.read(encoded);
 		}

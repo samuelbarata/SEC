@@ -1,0 +1,20 @@
+//
+// Protocol buffers definition for a Ping service
+//
+syntax = "proto3";
+package pt.ulisboa.tecnico.sec.candeeiros;
+
+message OpenAccountRequest {
+	bytes publicKey = 1;
+	bytes signature = 2;
+}
+
+message OpenAccountResponse {
+	bool ok = 1;
+}
+
+// Defining a Service, a Service can have multiple RPC operations
+service BankService {
+	// Define a RPC operation
+	rpc OpenAccount(OpenAccountRequest) returns (OpenAccountResponse);
+}

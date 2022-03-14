@@ -6,8 +6,8 @@ import io.grpc.ServerBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PingServer {
-	private static final Logger logger = LoggerFactory.getLogger(PingServer.class);
+public class BankServer {
+	private static final Logger logger = LoggerFactory.getLogger(BankServer.class);
 
 	/** Server host port. */
 	private static int port;
@@ -29,7 +29,7 @@ public class PingServer {
 		}
 
 		port = Integer.valueOf(args[0]);
-		final BindableService impl = new PingServiceImpl();
+		final BindableService impl = new BankServiceImpl();
 
 		// Create a new server to listen on port.
 		Server server = ServerBuilder.forPort(port).addService(impl).build();

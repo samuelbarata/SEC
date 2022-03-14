@@ -5,7 +5,7 @@
 	<!-- http://maven.apache.org/pom.html#Quick_Overview -->
 
 	<groupId>pt.ulisboa.tecnico.sec.candeeiros</groupId>
-	<artifactId>candeeiros-client</artifactId>
+	<artifactId>bftn-client</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>${project.artifactId}</name>
@@ -20,9 +20,11 @@
 		<version.maven-compiler-plugin>3.8.1</version.maven-compiler-plugin>
 		<version.exec-maven-plugin>3.0.0</version.exec-maven-plugin>
 
-		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.client.PingClient</mainclass>
+		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.client.BankClient</mainclass>
 		<server.host>localhost</server.host>
 		<server.port>8080</server.port>
+		<client.privatekey>./keys/id</client.privatekey>
+		<client.publickey>./keys/id.pub</client.publickey>
 	</properties>
 
 	<!-- Dependencies are code archives - JARs - 
@@ -33,13 +35,13 @@
 		<!-- contract brings gRPC dependencies with it -->
 		<dependency>
 			<groupId>pt.ulisboa.tecnico.sec.candeeiros</groupId>
-			<artifactId>candeeiros-contract</artifactId>
+			<artifactId>bftb-contract</artifactId>
 			<version>1.0.0-SNAPSHOT</version>
 		</dependency>
 
 		<dependency>
 			<groupId>pt.ulisboa.tecnico.sec.candeeiros</groupId>
-			<artifactId>candeeiros-shared</artifactId>
+			<artifactId>bftb-shared</artifactId>
 			<version>1.0.0-SNAPSHOT</version>
 		</dependency>
 
@@ -107,6 +109,8 @@
 					<arguments>
 						<argument>${server.host}</argument>
 						<argument>${server.port}</argument>
+						<argument>${client.privatekey}</argument>
+						<argument>${client.publickey}</argument>
 					</arguments>
 				</configuration>
 			</plugin>
