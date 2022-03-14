@@ -15,7 +15,7 @@ public class PingServiceImpl extends PingServiceGrpc.PingServiceImplBase {
 	public void ping(Ping.PingRequest request, StreamObserver<Ping.PingResponse> responseObserver) {
 
 		// PingRequest has auto-generated toString method that shows its contents
-		logger.info(request.toString());
+		logger.info("Got request with content: {}", request.getContent());
 
 		// You must use a builder to construct a new Protobuffer object
 		Ping.PingResponse response = Ping.PingResponse.newBuilder()
