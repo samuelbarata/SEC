@@ -10,8 +10,15 @@ import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
+
+import java.security.Key;
+
 public class PingClient {
 	private static final Logger logger = LoggerFactory.getLogger(PingClient.class);
+	private static final Key PUBLIC_KEY = Crypto.readKey("id.pub", "pub");
+	private static final Key PRIVATE_KEY = Crypto.readKey("id", "private");
+
 
 	public static void main(String[] args) {
 		logger.info("Ping Client");
@@ -59,5 +66,6 @@ public class PingClient {
 		// A Channel should be shutdown before stopping the process.
 		channel.shutdownNow();
 	}
+
 
 }

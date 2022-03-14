@@ -1,7 +1,8 @@
 # CandeeirosBank
 
-This is a gRPC application, composed of three modules:
+This is a gRPC application, composed of four modules:
 - [contract](contract/) - protocol buffers definition
+- [shared](shared/) - library for shared code
 - [server](server/) - implementation of service
 - [client](client/) - invocation of service
 
@@ -13,9 +14,10 @@ See the README for each module.
 
 The intended IDE is IntelliJ Idea. Run configurations are included:
 
-- Contract - Compiles the ProtoBuff definitions
-- Server - Runs the server
-- Client - Runs the client
+- Compile Contract - Compiles the ProtoBuff definitions
+- Compile Shared - Compiles the shared libraries
+- Run Server - Runs the server
+- Run Client - Runs the client
 
 After modifying the contract, make sure to recompile it (run the Contract run configuration). 
 

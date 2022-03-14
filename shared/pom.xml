@@ -5,7 +5,7 @@
 	<!-- http://maven.apache.org/pom.html#Quick_Overview -->
 
 	<groupId>pt.ulisboa.tecnico.sec.candeeiros</groupId>
-	<artifactId>candeeiros-client</artifactId>
+	<artifactId>candeeiros-shared</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>${project.artifactId}</name>
@@ -18,11 +18,6 @@
 		<version.java>11</version.java>
 		
 		<version.maven-compiler-plugin>3.8.1</version.maven-compiler-plugin>
-		<version.exec-maven-plugin>3.0.0</version.exec-maven-plugin>
-
-		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.client.PingClient</mainclass>
-		<server.host>localhost</server.host>
-		<server.port>8080</server.port>
 	</properties>
 
 	<!-- Dependencies are code archives - JARs - 
@@ -30,19 +25,6 @@
 		When you execute a goal, these dependencies are resolved, and 
 		are then loaded from the local repository. -->
 	<dependencies>
-		<!-- contract brings gRPC dependencies with it -->
-		<dependency>
-			<groupId>pt.ulisboa.tecnico.sec.candeeiros</groupId>
-			<artifactId>candeeiros-contract</artifactId>
-			<version>1.0.0-SNAPSHOT</version>
-		</dependency>
-
-		<dependency>
-			<groupId>pt.ulisboa.tecnico.sec.candeeiros</groupId>
-			<artifactId>candeeiros-shared</artifactId>
-			<version>1.0.0-SNAPSHOT</version>
-		</dependency>
-
 		<!-- SLF4J is a logging facade that supports a variety of backends. -->
 		<!-- We currently use log4j2 but it can  easily be switched out for another one, including the standard java.utils.Logger -->
 		<dependency>
@@ -88,26 +70,6 @@
 				<configuration>
 					<source>${version.java}</source>
 					<target>${version.java}</target>
-				</configuration>
-			</plugin>
-			<!-- Plugin that provides two goals to execute system and Java programs -->
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>exec-maven-plugin</artifactId>
-				<version>${version.exec-maven-plugin}</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>java</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<mainClass>${mainclass}</mainClass>
-					<arguments>
-						<argument>${server.host}</argument>
-						<argument>${server.port}</argument>
-					</arguments>
 				</configuration>
 			</plugin>
 		</plugins>

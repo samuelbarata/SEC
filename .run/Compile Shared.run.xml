@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Compile Contract" type="MavenRunConfiguration" factoryName="Maven">
+  <configuration default="false" name="Compile Shared" type="MavenRunConfiguration" factoryName="Maven">
     <MavenSettings>
       <option name="myGeneralSettings" />
       <option name="myRunnerSettings" />
@@ -19,7 +19,7 @@
             <map />
           </option>
           <option name="resolveToWorkspace" value="false" />
-          <option name="workingDirPath" value="$PROJECT_DIR$/contract" />
+          <option name="workingDirPath" value="$PROJECT_DIR$/shared" />
         </MavenRunnerParameters>
       </option>
     </MavenSettings>
