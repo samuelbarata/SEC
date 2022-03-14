@@ -29,6 +29,8 @@ public class PingClient {
 		final int port = Integer.parseInt(args[1]);
 		final String target = host + ":" + port;
 
+		final String contentToSend = "echo!";
+
 		// Channel is the abstraction to connect to a service endpoint
 		// Let us use plaintext communication because we do not have certificates
 		final ManagedChannel channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
@@ -37,13 +39,18 @@ public class PingClient {
 		// Here we create a blocking stub, but an async stub,
 		// or an async stub with Future are always possible.
 		PingServiceGrpc.PingServiceBlockingStub stub = PingServiceGrpc.newBlockingStub(channel);
-		Ping.PingRequest request = Ping.PingRequest.newBuilder().setContent("echo!").build();
+		Ping.PingRequest request = Ping.PingRequest.newBuilder().setContent(contentToSend).build();
 
 		// Finally, make the call using the stub
 		Ping.PingResponse response = stub.ping(request);
 
-		// PingResponse has auto-generated toString method that shows its contents
-		System.out.println(response);
+		System.out.println("Sent " + contentToSend);
+		System.out.println("Received " + response.getContent() + "\n");
+		if (contentToSend.equals(response.getContent().toString())) {
+			System.out.println("Strings match!\n");
+		} else {
+			System.out.println("Strings don't match!\n");
+		}
 
 		// A Channel should be shutdown before stopping the process.
 		channel.shutdownNow();
