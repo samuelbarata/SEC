@@ -10,7 +10,12 @@ message OpenAccountRequest {
 }
 
 message OpenAccountResponse {
-	bool ok = 1;
+	enum AccountStatus {
+		OPENED = 0;
+		ALREADY_EXISTED = 1;
+		KEY_FAILURE = 2;
+	}
+	AccountStatus status = 1;
 }
 
 // Defining a Service, a Service can have multiple RPC operations

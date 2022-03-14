@@ -26,28 +26,29 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.OpenAccountResponse> responseObserver) {
-		boolean success = true;
+		Bank.OpenAccountResponse.AccountStatus status;
 		try {
 			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(request.getPublicKey().toByteArray()));
 			logger.info("Got request to open account with public key {}", publicKey.toString());
 			if (bank.tryCreateAccount(publicKey)) {
 				logger.info("Account created.");
+				status = Bank.OpenAccountResponse.AccountStatus.OPENED;
 			} else {
 				logger.warn("Public Key already associated with an account.");
-				success = false;
+				status = Bank.OpenAccountResponse.AccountStatus.ALREADY_EXISTED;
 			}
 		} catch (InvalidKeySpecException e) {
 			logger.error("Got request to open account with invalid key");
-			success = false;
+			status = Bank.OpenAccountResponse.AccountStatus.KEY_FAILURE;
 			e.printStackTrace();
 		} catch (NoSuchAlgorithmException e) {
 			logger.error("Invalid Algorithm");
-			success = false;
+			status = Bank.OpenAccountResponse.AccountStatus.KEY_FAILURE;
 			e.printStackTrace();
 		}
 
 		Bank.OpenAccountResponse response = Bank.OpenAccountResponse.newBuilder()
-				.setOk(success)
+				.setStatus(status)
 				.build();
 
 		responseObserver.onNext(response);

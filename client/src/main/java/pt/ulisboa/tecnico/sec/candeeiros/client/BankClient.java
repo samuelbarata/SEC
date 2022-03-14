@@ -46,7 +46,7 @@ public class BankClient {
         // Finally, make the call using the stub
         Bank.OpenAccountResponse response = stub.openAccount(request);
 
-        logger.info("Received {}", response.getOk() ? "Ok" : "NotOk");
+        logger.info("Received {}", response.getStatus().name());
 
         // A Channel should be shutdown before stopping the process.
         channel.shutdownNow();
