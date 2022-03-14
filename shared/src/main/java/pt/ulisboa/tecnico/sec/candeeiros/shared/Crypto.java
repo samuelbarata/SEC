@@ -5,7 +5,6 @@ package pt.ulisboa.tecnico.sec.candeeiros.shared;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.Key;
@@ -18,21 +17,9 @@ import java.security.spec.X509EncodedKeySpec;
 public class Crypto {
 	private static final Logger logger = LoggerFactory.getLogger(Crypto.class);
 
-	public static Key readKey(String resourcePath, String type) {
+	public static Key readKeyOrExit(String resourcePath, String type) {
 		try {
-			byte[] encoded;
-			try (InputStream fis = Crypto.class.getClassLoader().getResourceAsStream(resourcePath)) {
-				encoded = new byte[fis.available()];
-				fis.read(encoded);
-			}
-			KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-			if (type.equals("pub")) {
-				X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
-				return keyFactory.generatePublic(keySpec);
-			}
-
-			PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
-			return keyFactory.generatePrivate(keySpec);
+			return readKey(resourcePath, type);
 		} catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | NullPointerException e) {
 			logger.error("Could not read {} key in file {}:", type, resourcePath);
 			e.printStackTrace();
@@ -40,5 +27,21 @@ public class Crypto {
 			// For the compiler
 			return null;
 		}
+	}
+
+	public static Key readKey(String resourcePath, String type) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, NullPointerException {
+		byte[] encoded;
+		try (InputStream fis = Crypto.class.getClassLoader().getResourceAsStream(resourcePath)) {
+			encoded = new byte[fis.available()];
+			fis.read(encoded);
+		}
+		KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+		if (type.equals("pub")) {
+			X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
+			return keyFactory.generatePublic(keySpec);
+		}
+
+		PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
+		return keyFactory.generatePrivate(keySpec);
 	}
 }

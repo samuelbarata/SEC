@@ -16,8 +16,8 @@ import java.security.Key;
 
 public class PingClient {
 	private static final Logger logger = LoggerFactory.getLogger(PingClient.class);
-	private static final Key PUBLIC_KEY = Crypto.readKey("id.pub", "pub");
-	private static final Key PRIVATE_KEY = Crypto.readKey("id", "private");
+	private static final Key PUBLIC_KEY = Crypto.readKeyOrExit("id.pub", "pub");
+	private static final Key PRIVATE_KEY = Crypto.readKeyOrExit("id", "private");
 
 
 	public static void main(String[] args) {
