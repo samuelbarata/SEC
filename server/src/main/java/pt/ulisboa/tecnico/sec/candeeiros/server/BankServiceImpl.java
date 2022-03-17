@@ -25,33 +25,41 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		bank = new BftBank();
 	}
 
-	@Override
-	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.OpenAccountResponse> responseObserver) {
-		Bank.OpenAccountResponse.AccountStatus status;
+	private Bank.OpenAccountResponse.AccountStatus openAccountStatus(Bank.OpenAccountRequest request) {
 		try {
 			PublicKey publicKey = Crypto.decodePublicKey(request.getPublicKey());
-			logger.info("Got request to open account with public key {}", Crypto.keyAsShortString(publicKey));
-			if (!bank.accountExists(publicKey)) {
+			if (bank.accountExists(publicKey))
+				return Bank.OpenAccountResponse.AccountStatus.ALREADY_EXISTED;
+			return Bank.OpenAccountResponse.AccountStatus.OPENED;
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			return Bank.OpenAccountResponse.AccountStatus.KEY_FAILURE;
+		}
+	}
+
+	@Override
+	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.OpenAccountResponse> responseObserver) {
+		Bank.OpenAccountResponse.AccountStatus status = openAccountStatus(request);
+
+		logger.info("Got request to open account. Status: {}", status);
+
+		switch (status) {
+			case OPENED:
+				PublicKey publicKey = null;
+				try {
+					publicKey = Crypto.decodePublicKey(request.getPublicKey());
+				} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+					// Should never happen
+					e.printStackTrace();
+				}
 				bank.createAccount(publicKey);
-				status = Bank.OpenAccountResponse.AccountStatus.OPENED;
-				logger.info("Opened account");
-			} else {
-				logger.warn("Public Key already associated with an account.");
-				status = Bank.OpenAccountResponse.AccountStatus.ALREADY_EXISTED;
-			}
-		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-			logger.error("Got request to open account with invalid key");
-			logger.error("Invalid Algorithm");
-			status = Bank.OpenAccountResponse.AccountStatus.KEY_FAILURE;
-			e.printStackTrace();
+				logger.info("Opened account with public key {}.", Crypto.keyAsShortString(publicKey));
+				break;
 		}
 
 		Bank.OpenAccountResponse response = Bank.OpenAccountResponse.newBuilder()
 				.setStatus(status)
 				.build();
-
 		responseObserver.onNext(response);
-
 		responseObserver.onCompleted();
 	}
 
@@ -108,9 +116,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		Bank.SendAmountResponse response = Bank.SendAmountResponse.newBuilder()
 				.setStatus(status)
 				.build();
-
 		responseObserver.onNext(response);
-
 		responseObserver.onCompleted();
 	}
 }
