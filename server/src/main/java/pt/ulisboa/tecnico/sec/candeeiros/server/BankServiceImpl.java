@@ -5,15 +5,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
 import io.grpc.stub.StreamObserver;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.BftBank;
 
-import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
 
 public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
@@ -28,11 +27,13 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.OpenAccountResponse> responseObserver) {
 		Bank.OpenAccountResponse.AccountStatus status;
 		try {
-			PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(request.getPublicKey().toByteArray()));
+			PublicKey publicKey = Crypto.decodePublicKey(request.getPublicKey());
 			logger.info("Got request to open account with public key {}", publicKey.toString());
-			if (bank.tryCreateAccount(publicKey)) {
-				logger.info("Account created.");
+			if (!bank.accountExists(publicKey))
+			{
+				bank.createAccount(publicKey);
 				status = Bank.OpenAccountResponse.AccountStatus.OPENED;
+				logger.info("Opened account");
 			} else {
 				logger.warn("Public Key already associated with an account.");
 				status = Bank.OpenAccountResponse.AccountStatus.ALREADY_EXISTED;
@@ -54,5 +55,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		responseObserver.onNext(response);
 
 		responseObserver.onCompleted();
+	}
+
+	@Override
+	public void sendAmount(Bank.SendAmountRequest request, StreamObserver<Bank.SendAmountResponse> responseObserver) {
+		// TODO
 	}
 }

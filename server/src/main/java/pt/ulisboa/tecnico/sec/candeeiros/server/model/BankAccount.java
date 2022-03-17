@@ -2,11 +2,21 @@ package pt.ulisboa.tecnico.sec.candeeiros.server.model;
 
 import java.math.BigDecimal;
 import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 public class BankAccount {
     private final PublicKey publicKey;
     private BigDecimal balance;
+    private List transactionHistory;
+
+    public List getTransactionQueue() {
+        return transactionQueue;
+    }
+
+    private List transactionQueue;
 
     public BankAccount(PublicKey publicKey) {
         if (publicKey == null) {
@@ -14,6 +24,8 @@ public class BankAccount {
         }
         this.publicKey = publicKey;
         this.balance = new BigDecimal(1000);
+        this.transactionHistory = Collections.synchronizedList(new ArrayList<>());
+        this.transactionQueue = Collections.synchronizedList(new ArrayList<>());
     }
 
     public PublicKey getPublicKey() {

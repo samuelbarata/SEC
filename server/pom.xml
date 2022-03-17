@@ -32,6 +32,13 @@
 			<version>1.0.0-SNAPSHOT</version>
 		</dependency>
 
+		<dependency>
+			<groupId>pt.ulisboa.tecnico.sec.candeeiros</groupId>
+			<artifactId>bftb-shared</artifactId>
+			<version>1.0.0-SNAPSHOT</version>
+			<scope>compile</scope>
+		</dependency>
+
 		<!-- SLF4J is a logging facade that supports a variety of backends. -->
 		<!-- We currently use log4j2 but it can  easily be switched out for another one, including the standard java.utils.Logger -->
 		<dependency>

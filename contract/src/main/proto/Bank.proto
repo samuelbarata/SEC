@@ -4,8 +4,12 @@
 syntax = "proto3";
 package pt.ulisboa.tecnico.sec.candeeiros;
 
+message PublicKey {
+	bytes keyBytes = 1;
+}
+
 message OpenAccountRequest {
-	bytes publicKey = 1;
+	PublicKey publicKey = 1;
 	bytes signature = 2;
 }
 
@@ -18,8 +22,22 @@ message OpenAccountResponse {
 	AccountStatus status = 1;
 }
 
+
+message SendAmountRequest {
+	PublicKey sourcePublicKey = 1;
+	PublicKey destinationPublicKey = 2;
+	// String to avoid the use of floats since they are not safe for money representations
+	string amount = 3;
+}
+
+message SendAmountResponse {
+
+}
+
+
 // Defining a Service, a Service can have multiple RPC operations
 service BankService {
 	// Define a RPC operation
 	rpc OpenAccount(OpenAccountRequest) returns (OpenAccountResponse);
+	rpc SendAmount(SendAmountRequest) returns (SendAmountResponse);
 }

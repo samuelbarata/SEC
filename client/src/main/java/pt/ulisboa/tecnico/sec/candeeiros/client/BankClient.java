@@ -28,30 +28,6 @@ public class BankClient {
         this.privateKey = (PrivateKey) Crypto.readKeyOrExit(privateKeyFile, "private");
     }
 
-    public void openAccount() {
-        // Channel is the abstraction to connect to a service endpoint
-        // Let us use plaintext communication because we do not have certificates
-        final ManagedChannel channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
-
-        // It is up to the client to determine whether to block the call
-        // Here we create a blocking stub, but an async stub,
-        // or an async stub with Future are always possible.
-        BankServiceGrpc.BankServiceBlockingStub stub = BankServiceGrpc.newBlockingStub(channel);
-        Bank.OpenAccountRequest request = null;
-        request = Bank.OpenAccountRequest.newBuilder()
-                .setPublicKey(ByteString.copyFrom(publicKey.getEncoded()))
-                .build();
-
-        logger.info("Attempting to open an account with public key {}", publicKey.toString());
-        // Finally, make the call using the stub
-        Bank.OpenAccountResponse response = stub.openAccount(request);
-
-        logger.info("Received {}", response.getStatus().name());
-
-        // A Channel should be shutdown before stopping the process.
-        channel.shutdownNow();
-    }
-
     public static void main(String[] args) {
         // check arguments
         if (args.length < 4) {
@@ -63,11 +39,8 @@ public class BankClient {
         final String host = args[0];
         final int port = Integer.parseInt(args[1]);
         final String target = host + ":" + port;
-        final String privateKeyFile = args[2];
-        final String publicKeyFile = args[3];
 
-        final BankClient client = new BankClient(target, privateKeyFile, publicKeyFile);
-
-        client.openAccount();
+        InteractiveCli cli = new InteractiveCli(target);
+        cli.run();
     }
 }
