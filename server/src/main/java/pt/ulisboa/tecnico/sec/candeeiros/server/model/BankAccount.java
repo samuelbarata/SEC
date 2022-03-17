@@ -10,13 +10,12 @@ import java.util.Objects;
 public class BankAccount {
     private final PublicKey publicKey;
     private BigDecimal balance;
-    private List transactionHistory;
+    private List<Transaction> transactionHistory;
+    private List<Transaction> transactionQueue;
 
-    public List getTransactionQueue() {
+    public List<Transaction> getTransactionQueue() {
         return transactionQueue;
     }
-
-    private List transactionQueue;
 
     public BankAccount(PublicKey publicKey) {
         if (publicKey == null) {

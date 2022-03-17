@@ -33,7 +33,8 @@ public class InteractiveCli {
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
                 .build();
 
-        System.out.printf("Attempting to open an account with public key %s%n", publicKey.toString());
+        System.out.printf("Attempting to open an account with public key %s%n",
+                Crypto.keyAsShortString(publicKey));
 
         Bank.OpenAccountResponse response = stub.openAccount(request);
 
@@ -48,6 +49,10 @@ public class InteractiveCli {
             e.printStackTrace();
             return;
         }
+        System.out.printf("Attempting to create a transaction from %s to %s with amount %s%n",
+                Crypto.keyAsShortString(publicKey),
+                Crypto.keyAsShortString(other),
+                amount);
 
         Bank.SendAmountRequest request = Bank.SendAmountRequest.newBuilder()
                 .setSourcePublicKey(Crypto.encodePublicKey(publicKey))
@@ -56,6 +61,8 @@ public class InteractiveCli {
                 .build();
 
         Bank.SendAmountResponse response = stub.sendAmount(request);
+
+        System.out.printf("Received %s%n", response.getStatus().name());
     }
 
     public void run() {

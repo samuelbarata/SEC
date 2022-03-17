@@ -13,9 +13,18 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 
 public class Crypto {
 	private static final Logger logger = LoggerFactory.getLogger(Crypto.class);
+
+	public static String keyAsString(Key key) {
+		return new String(Base64.getEncoder().encode(key.getEncoded()));
+	}
+
+	public static String keyAsShortString(Key key) {
+		return new String(Base64.getEncoder().encode(key.getEncoded())).substring(45, 55);
+	}
 
 	public static Bank.PublicKey encodePublicKey(PublicKey publicKey) {
 		return Bank.PublicKey.newBuilder().setKeyBytes(ByteString.copyFrom(publicKey.getEncoded())).build();

@@ -5,11 +5,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
+import pt.ulisboa.tecnico.sec.candeeiros.server.model.Transaction;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
 import io.grpc.stub.StreamObserver;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.BftBank;
 
+import java.math.BigDecimal;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
@@ -28,9 +30,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		Bank.OpenAccountResponse.AccountStatus status;
 		try {
 			PublicKey publicKey = Crypto.decodePublicKey(request.getPublicKey());
-			logger.info("Got request to open account with public key {}", publicKey.toString());
-			if (!bank.accountExists(publicKey))
-			{
+			logger.info("Got request to open account with public key {}", Crypto.keyAsShortString(publicKey));
+			if (!bank.accountExists(publicKey)) {
 				bank.createAccount(publicKey);
 				status = Bank.OpenAccountResponse.AccountStatus.OPENED;
 				logger.info("Opened account");
@@ -38,11 +39,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 				logger.warn("Public Key already associated with an account.");
 				status = Bank.OpenAccountResponse.AccountStatus.ALREADY_EXISTED;
 			}
-		} catch (InvalidKeySpecException e) {
+		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
 			logger.error("Got request to open account with invalid key");
-			status = Bank.OpenAccountResponse.AccountStatus.KEY_FAILURE;
-			e.printStackTrace();
-		} catch (NoSuchAlgorithmException e) {
 			logger.error("Invalid Algorithm");
 			status = Bank.OpenAccountResponse.AccountStatus.KEY_FAILURE;
 			e.printStackTrace();
@@ -57,8 +55,62 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		responseObserver.onCompleted();
 	}
 
+	private Bank.SendAmountResponse.TransactionStatus sendAmountStatus(Bank.SendAmountRequest request) {
+		try {
+			PublicKey destinationKey = Crypto.decodePublicKey(request.getDestinationPublicKey());
+			PublicKey sourceKey = Crypto.decodePublicKey(request.getSourcePublicKey());
+
+			if (!bank.accountExists(destinationKey))
+				return Bank.SendAmountResponse.TransactionStatus.DESTINATION_INVALID;
+			if (!bank.accountExists(sourceKey))
+				return Bank.SendAmountResponse.TransactionStatus.SOURCE_INVALID;
+			if (sourceKey.equals(destinationKey))
+				return Bank.SendAmountResponse.TransactionStatus.DESTINATION_INVALID;
+			BigDecimal amount = new BigDecimal(request.getAmount());
+			if (bank.getAccount(sourceKey).getBalance().compareTo(amount) < 0)
+				return Bank.SendAmountResponse.TransactionStatus.NOT_ENOUGH_BALANCE;
+			return Bank.SendAmountResponse.TransactionStatus.CREATED;
+		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+			return Bank.SendAmountResponse.TransactionStatus.INVALID_KEY_FORMAT;
+		} catch (NumberFormatException e) {
+			return Bank.SendAmountResponse.TransactionStatus.INVALID_NUMBER_FORMAT;
+		}
+	}
+
 	@Override
 	public void sendAmount(Bank.SendAmountRequest request, StreamObserver<Bank.SendAmountResponse> responseObserver) {
-		// TODO
+		Bank.SendAmountResponse.TransactionStatus status = sendAmountStatus(request);
+
+		logger.info("Got request to create transaction. Status: {}", status);
+
+		switch (status) {
+			case CREATED:
+				PublicKey sourceKey = null;
+				PublicKey destinationKey = null;
+				try {
+					sourceKey = Crypto.decodePublicKey(request.getSourcePublicKey());
+					destinationKey = Crypto.decodePublicKey(request.getDestinationPublicKey());
+				} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+					// Should never happen
+					e.printStackTrace();
+				}
+				BigDecimal amount = new BigDecimal(request.getAmount()); // should never fail
+				Transaction transaction = new Transaction(sourceKey, destinationKey, amount);
+				bank.getAccount(sourceKey).getBalance().subtract(amount);
+				bank.getAccount(destinationKey).getTransactionQueue().add(transaction);
+				logger.info("Created transaction: {} -> {} (amount: {})",
+						Crypto.keyAsShortString(sourceKey),
+						Crypto.keyAsShortString(destinationKey),
+						amount);
+				break;
+		}
+
+		Bank.SendAmountResponse response = Bank.SendAmountResponse.newBuilder()
+				.setStatus(status)
+				.build();
+
+		responseObserver.onNext(response);
+
+		responseObserver.onCompleted();
 	}
 }

@@ -31,7 +31,15 @@ message SendAmountRequest {
 }
 
 message SendAmountResponse {
-
+	enum TransactionStatus {
+		CREATED = 0;
+		SOURCE_INVALID = 1;
+		DESTINATION_INVALID = 2;
+		NOT_ENOUGH_BALANCE = 3;
+		INVALID_KEY_FORMAT = 4;
+		INVALID_NUMBER_FORMAT = 5;
+	}
+	TransactionStatus status = 1;
 }
 
 
