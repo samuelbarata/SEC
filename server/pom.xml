@@ -2,7 +2,6 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<!-- http://maven.apache.org/pom.html#Quick_Overview -->
 
 	<groupId>pt.ulisboa.tecnico.sec.candeeiros</groupId>
 	<artifactId>bftb-server</artifactId>
@@ -10,7 +9,6 @@
 	<packaging>jar</packaging>
 	<name>${project.artifactId}</name>
 
-	<!-- Properties are variables used to customize the behavior of Maven and its plug-ins. -->
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -73,8 +71,6 @@
 
 	<build>
 		<plugins>
-			<!-- Plug-in used to compile the sources of your project. Java 9 requires 
-				at least version 3.7.0 to properly handle modules. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -84,7 +80,7 @@
 					<target>${version.java}</target>
 				</configuration>
 			</plugin>
-			<!-- Plug-in that provides two goals to execute system and Java programs -->
+
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>exec-maven-plugin</artifactId>

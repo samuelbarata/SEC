@@ -26,7 +26,7 @@ public class Start {
 
     public static void main(String[] args) {
         // check arguments
-        if (args.length < 4) {
+        if (args.length < 2) {
             System.err.println("Argument(s) missing!");
             System.err.printf("Usage: java %s host port%n", Start.class.getName());
             return;

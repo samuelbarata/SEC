@@ -2,7 +2,6 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<!-- http://maven.apache.org/pom.html#Quick_Overview -->
 
 	<groupId>pt.ulisboa.tecnico.sec.candeeiros</groupId>
 	<artifactId>bftb-contract</artifactId>
@@ -10,7 +9,6 @@
 	<packaging>jar</packaging>
 	<name>${project.artifactId}</name>
 
-	<!-- Properties are variables used to customize the behavior of Maven and its plug-ins. -->
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -22,14 +20,12 @@
 		<version.maven-compiler-plugin>3.8.1</version.maven-compiler-plugin>
 
 		<version.grpc>1.36.0</version.grpc>
-		<version.protoc>3.12.0</version.protoc><!-- aligned with the gRPC dependency version -->
+		<version.protoc>3.12.0</version.protoc>
 		<version.javax.annotation-api>1.3.2</version.javax.annotation-api>
 	</properties>
 
 	<dependencyManagement>
 		<dependencies>
-			<!-- gRPC BoM (Bill-of-Materials) defines a set of versions for subdependencies. -->
-			<!-- https://mvnrepository.com/artifact/io.grpc/grpc-bom -->
 			<dependency>
 				<groupId>io.grpc</groupId>
 				<artifactId>grpc-bom</artifactId>

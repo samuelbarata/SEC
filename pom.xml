@@ -8,10 +8,6 @@
 	<version>1.0.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
-	<!-- Modules are subcomponents of the project. 
-		The reactor collects all the available modules to build;
-		sorts the projects into the correct build order;
-		builds the selected projects in order. -->
 	<modules>
 		<module>contract</module>
 		<module>server</module>

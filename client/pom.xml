@@ -2,7 +2,6 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<!-- http://maven.apache.org/pom.html#Quick_Overview -->
 
 	<groupId>pt.ulisboa.tecnico.sec.candeeiros</groupId>
 	<artifactId>bftb-client</artifactId>
@@ -10,7 +9,6 @@
 	<packaging>jar</packaging>
 	<name>${project.artifactId}</name>
 
-	<!-- Properties are variables used to customize the behavior of Maven and its plug-ins. -->
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -19,16 +17,13 @@
 		
 		<version.maven-compiler-plugin>3.8.1</version.maven-compiler-plugin>
 		<version.exec-maven-plugin>3.0.0</version.exec-maven-plugin>
+		<version.maven-surefire-plugin>3.0.0-M5</version.maven-surefire-plugin>
 
 		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.client.Start</mainclass>
 		<server.host>localhost</server.host>
 		<server.port>8080</server.port>
 	</properties>
 
-	<!-- Dependencies are code archives - JARs - 
-		on which your current module needs in order to compile, build, test, and/or to run. 
-		When you execute a goal, these dependencies are resolved, and 
-		are then loaded from the local repository. -->
 	<dependencies>
 		<!-- contract brings gRPC dependencies with it -->
 		<dependency>
@@ -42,14 +37,17 @@
 			<artifactId>bftb-shared</artifactId>
 			<version>1.0.0-SNAPSHOT</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>5.8.2</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
-		<!-- Plug-ins allow for the reuse of common build logic across multiple projects. 
-		They do this by executing an "action" in the context of a project's description. -->
 		<plugins>
-			<!-- Plug-in used to compile the sources of your project. Java 9 requires 
-				at least version 3.7.0 to properly handle modules. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -59,7 +57,7 @@
 					<target>${version.java}</target>
 				</configuration>
 			</plugin>
-			<!-- Plugin that provides two goals to execute system and Java programs -->
+
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>exec-maven-plugin</artifactId>
@@ -76,10 +74,14 @@
 					<arguments>
 						<argument>${server.host}</argument>
 						<argument>${server.port}</argument>
-						<argument>${client.privatekey}</argument>
-						<argument>${client.publickey}</argument>
 					</arguments>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>${version.maven-surefire-plugin}</version>
 			</plugin>
 		</plugins>
 	</build>
