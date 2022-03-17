@@ -8,38 +8,57 @@ message PublicKey {
 	bytes keyBytes = 1;
 }
 
+message Transaction {
+	PublicKey sourcePublicKey = 1;
+	PublicKey destinationPublicKey = 2;
+	// string to avoid floats which are unsafe for exact number representations
+	string amount = 3;
+}
+
 message OpenAccountRequest {
 	PublicKey publicKey = 1;
 	bytes signature = 2;
 }
 
 message OpenAccountResponse {
-	enum AccountStatus {
-		OPENED = 0;
+	enum Status {
+		SUCCESS = 0;
 		ALREADY_EXISTED = 1;
 		KEY_FAILURE = 2;
 	}
-	AccountStatus status = 1;
+	Status status = 1;
 }
 
 
 message SendAmountRequest {
-	PublicKey sourcePublicKey = 1;
-	PublicKey destinationPublicKey = 2;
-	// String to avoid the use of floats since they are not safe for money representations
-	string amount = 3;
+	Transaction transaction = 1;
 }
 
 message SendAmountResponse {
-	enum TransactionStatus {
-		CREATED = 0;
+	enum Status {
+		SUCCESS = 0;
 		SOURCE_INVALID = 1;
 		DESTINATION_INVALID = 2;
 		NOT_ENOUGH_BALANCE = 3;
 		INVALID_KEY_FORMAT = 4;
 		INVALID_NUMBER_FORMAT = 5;
 	}
-	TransactionStatus status = 1;
+	Status status = 1;
+}
+
+message CheckAccountRequest {
+	PublicKey publicKey = 1;
+}
+
+message CheckAccountResponse {
+	enum Status {
+		SUCCESS = 0;
+		INVALID_KEY = 1;
+		INVALID_KEY_FORMAT = 2;
+	}
+	Status status = 1;
+	string balance = 2;
+	repeated Transaction transactions = 3;
 }
 
 
@@ -48,4 +67,5 @@ service BankService {
 	// Define a RPC operation
 	rpc OpenAccount(OpenAccountRequest) returns (OpenAccountResponse);
 	rpc SendAmount(SendAmountRequest) returns (SendAmountResponse);
+	rpc CheckAccount(CheckAccountRequest) returns (CheckAccountResponse);
 }

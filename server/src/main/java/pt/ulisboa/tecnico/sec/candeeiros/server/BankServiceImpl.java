@@ -25,25 +25,25 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		bank = new BftBank();
 	}
 
-	private Bank.OpenAccountResponse.AccountStatus openAccountStatus(Bank.OpenAccountRequest request) {
+	private Bank.OpenAccountResponse.Status openAccountStatus(Bank.OpenAccountRequest request) {
 		try {
 			PublicKey publicKey = Crypto.decodePublicKey(request.getPublicKey());
 			if (bank.accountExists(publicKey))
-				return Bank.OpenAccountResponse.AccountStatus.ALREADY_EXISTED;
-			return Bank.OpenAccountResponse.AccountStatus.OPENED;
+				return Bank.OpenAccountResponse.Status.ALREADY_EXISTED;
+			return Bank.OpenAccountResponse.Status.SUCCESS;
 		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-			return Bank.OpenAccountResponse.AccountStatus.KEY_FAILURE;
+			return Bank.OpenAccountResponse.Status.KEY_FAILURE;
 		}
 	}
 
 	@Override
 	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.OpenAccountResponse> responseObserver) {
-		Bank.OpenAccountResponse.AccountStatus status = openAccountStatus(request);
+		Bank.OpenAccountResponse.Status status = openAccountStatus(request);
 
 		logger.info("Got request to open account. Status: {}", status);
 
 		switch (status) {
-			case OPENED:
+			case SUCCESS:
 				PublicKey publicKey = null;
 				try {
 					publicKey = Crypto.decodePublicKey(request.getPublicKey());
@@ -63,46 +63,46 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		responseObserver.onCompleted();
 	}
 
-	private Bank.SendAmountResponse.TransactionStatus sendAmountStatus(Bank.SendAmountRequest request) {
+	private Bank.SendAmountResponse.Status sendAmountStatus(Bank.SendAmountRequest request) {
 		try {
-			PublicKey destinationKey = Crypto.decodePublicKey(request.getDestinationPublicKey());
-			PublicKey sourceKey = Crypto.decodePublicKey(request.getSourcePublicKey());
+			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 
 			if (!bank.accountExists(destinationKey))
-				return Bank.SendAmountResponse.TransactionStatus.DESTINATION_INVALID;
+				return Bank.SendAmountResponse.Status.DESTINATION_INVALID;
 			if (!bank.accountExists(sourceKey))
-				return Bank.SendAmountResponse.TransactionStatus.SOURCE_INVALID;
+				return Bank.SendAmountResponse.Status.SOURCE_INVALID;
 			if (sourceKey.equals(destinationKey))
-				return Bank.SendAmountResponse.TransactionStatus.DESTINATION_INVALID;
-			BigDecimal amount = new BigDecimal(request.getAmount());
+				return Bank.SendAmountResponse.Status.DESTINATION_INVALID;
+			BigDecimal amount = new BigDecimal(request.getTransaction().getAmount());
 			if (bank.getAccount(sourceKey).getBalance().compareTo(amount) < 0)
-				return Bank.SendAmountResponse.TransactionStatus.NOT_ENOUGH_BALANCE;
-			return Bank.SendAmountResponse.TransactionStatus.CREATED;
+				return Bank.SendAmountResponse.Status.NOT_ENOUGH_BALANCE;
+			return Bank.SendAmountResponse.Status.SUCCESS;
 		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-			return Bank.SendAmountResponse.TransactionStatus.INVALID_KEY_FORMAT;
+			return Bank.SendAmountResponse.Status.INVALID_KEY_FORMAT;
 		} catch (NumberFormatException e) {
-			return Bank.SendAmountResponse.TransactionStatus.INVALID_NUMBER_FORMAT;
+			return Bank.SendAmountResponse.Status.INVALID_NUMBER_FORMAT;
 		}
 	}
 
 	@Override
 	public void sendAmount(Bank.SendAmountRequest request, StreamObserver<Bank.SendAmountResponse> responseObserver) {
-		Bank.SendAmountResponse.TransactionStatus status = sendAmountStatus(request);
+		Bank.SendAmountResponse.Status status = sendAmountStatus(request);
 
 		logger.info("Got request to create transaction. Status: {}", status);
 
 		switch (status) {
-			case CREATED:
+			case SUCCESS:
 				PublicKey sourceKey = null;
 				PublicKey destinationKey = null;
 				try {
-					sourceKey = Crypto.decodePublicKey(request.getSourcePublicKey());
-					destinationKey = Crypto.decodePublicKey(request.getDestinationPublicKey());
+					sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
+					destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 				} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
 					// Should never happen
 					e.printStackTrace();
 				}
-				BigDecimal amount = new BigDecimal(request.getAmount()); // should never fail
+				BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
 				Transaction transaction = new Transaction(sourceKey, destinationKey, amount);
 				bank.getAccount(sourceKey).getBalance().subtract(amount);
 				bank.getAccount(destinationKey).getTransactionQueue().add(transaction);
@@ -117,6 +117,51 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 				.setStatus(status)
 				.build();
 		responseObserver.onNext(response);
+		responseObserver.onCompleted();
+	}
+
+	private Bank.CheckAccountResponse.Status checkAccountStatus(Bank.CheckAccountRequest request) {
+		try {
+			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
+			if (!bank.accountExists(key))
+				return Bank.CheckAccountResponse.Status.INVALID_KEY;
+			return Bank.CheckAccountResponse.Status.SUCCESS;
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			return Bank.CheckAccountResponse.Status.INVALID_KEY_FORMAT;
+		}
+	}
+
+	@Override
+	public void checkAccount(Bank.CheckAccountRequest request, StreamObserver<Bank.CheckAccountResponse> responseObserver) {
+		Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
+		logger.info("Got request to create transaction. Status: {}", status);
+
+		Bank.CheckAccountResponse.Builder response = Bank.CheckAccountResponse
+				.newBuilder()
+				.setStatus(status);
+
+		switch (status) {
+			case SUCCESS:
+				PublicKey key = null;
+				try {
+					key = Crypto.decodePublicKey(request.getPublicKey());
+				} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+					// This should not happen
+					e.printStackTrace();
+				}
+
+				for (Transaction t : bank.getAccount(key).getTransactionQueue()) {
+					Bank.Transaction transaction = Bank.Transaction.newBuilder()
+							.setAmount(t.getAmount().toString())
+							.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
+							.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+							.build();
+					response.addTransactions(transaction);
+				}
+				break;
+		}
+
+		responseObserver.onNext(response.build());
 		responseObserver.onCompleted();
 	}
 }
