@@ -19,7 +19,6 @@
 		<version.exec-maven-plugin>3.0.0</version.exec-maven-plugin>
 		<version.maven-surefire-plugin>3.0.0-M5</version.maven-surefire-plugin>
 
-		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.client.Start</mainclass>
 		<server.host>localhost</server.host>
 		<server.port>8080</server.port>
 	</properties>
@@ -55,26 +54,6 @@
 				<configuration>
 					<source>${version.java}</source>
 					<target>${version.java}</target>
-				</configuration>
-			</plugin>
-
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>exec-maven-plugin</artifactId>
-				<version>${version.exec-maven-plugin}</version>
-				<executions>
-					<execution>
-						<goals>
-							<goal>java</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<mainClass>${mainclass}</mainClass>
-					<arguments>
-						<argument>${server.host}</argument>
-						<argument>${server.port}</argument>
-					</arguments>
 				</configuration>
 			</plugin>
 

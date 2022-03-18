@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
+import pt.ulisboa.tecnico.sec.candeeiros.server.model.BankAccount;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.Transaction;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
@@ -104,7 +105,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 				}
 				BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
 				Transaction transaction = new Transaction(sourceKey, destinationKey, amount);
-				bank.getAccount(sourceKey).getBalance().subtract(amount);
+				BankAccount sourceAccount = bank.getAccount(sourceKey);
+				sourceAccount.setBalance(sourceAccount.getBalance().subtract(amount));
 				bank.getAccount(destinationKey).getTransactionQueue().add(transaction);
 				logger.info("Created transaction: {} -> {} (amount: {})",
 						Crypto.keyAsShortString(sourceKey),
@@ -134,7 +136,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	@Override
 	public void checkAccount(Bank.CheckAccountRequest request, StreamObserver<Bank.CheckAccountResponse> responseObserver) {
 		Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
-		logger.info("Got request to create transaction. Status: {}", status);
+		logger.info("Got check account. Status: {}", status);
 
 		Bank.CheckAccountResponse.Builder response = Bank.CheckAccountResponse
 				.newBuilder()
@@ -150,7 +152,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					e.printStackTrace();
 				}
 
-				for (Transaction t : bank.getAccount(key).getTransactionQueue()) {
+				BankAccount account = bank.getAccount(key);
+				response.setBalance(account.getBalance().toString());
+
+				for (Transaction t : account.getTransactionQueue()) {
 					Bank.Transaction transaction = Bank.Transaction.newBuilder()
 							.setAmount(t.getAmount().toString())
 							.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))

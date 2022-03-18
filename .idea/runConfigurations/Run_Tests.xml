@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run Client" type="MavenRunConfiguration" factoryName="Maven" singleton="false">
+  <configuration default="false" name="Run Tests" type="MavenRunConfiguration" factoryName="Maven">
     <MavenSettings>
       <option name="myGeneralSettings" />
       <option name="myRunnerSettings" />
@@ -11,8 +11,8 @@
           <option name="goals">
             <list>
               <option value="clean" />
-              <option value="compile" />
-              <option value="exec:java" />
+              <option value="test" />
+              <option value="-Dtarget=localhost:8080" />
             </list>
           </option>
           <option name="pomFileName" />

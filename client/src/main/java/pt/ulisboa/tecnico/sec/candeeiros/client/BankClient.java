@@ -28,26 +28,15 @@ public class BankClient {
         channel.shutdown();
     }
 
-    public void openAccount(PublicKey publicKey) {
+    public Bank.OpenAccountResponse openAccount(PublicKey publicKey) {
         Bank.OpenAccountRequest request = Bank.OpenAccountRequest.newBuilder()
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
                 .build();
 
-        System.out.printf("Attempting to open an account with public key %s%n",
-                Crypto.keyAsShortString(publicKey));
-
-        Bank.OpenAccountResponse response = stub.openAccount(request);
-
-        System.out.printf("Received %s%n", response.getStatus().name());
+        return stub.openAccount(request);
     }
 
-    public void sendAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount) {
-
-        System.out.printf("Attempting to create a transaction from %s to %s with amount %s%n",
-                Crypto.keyAsShortString(sourcePublicKey),
-                Crypto.keyAsShortString(destinationPublicKey),
-                amount);
-
+    public Bank.SendAmountResponse sendAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount) {
         Bank.Transaction transaction = Bank.Transaction
                 .newBuilder()
                 .setSourcePublicKey(Crypto.encodePublicKey(sourcePublicKey))
@@ -60,40 +49,16 @@ public class BankClient {
                 .setTransaction(transaction)
                 .build();
 
-        Bank.SendAmountResponse response = stub.sendAmount(request);
-
-        System.out.printf("Received %s%n", response.getStatus().name());
+        return stub.sendAmount(request);
     }
 
-    public void checkAccount(String publicKeyFilename) {
-        PublicKey publicKey;
-        try {
-            publicKey = (PublicKey) Crypto.readKey(publicKeyFilename, "pub");
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-            e.printStackTrace();
-            return;
-        }
-
-        System.out.printf("Checking account with key %s%n", Crypto.keyAsShortString(publicKey));
-
+    public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) {
         Bank.CheckAccountRequest request = Bank.CheckAccountRequest.newBuilder()
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
                 .build();
 
-        Bank.CheckAccountResponse response = stub.checkAccount(request);
+        return stub.checkAccount(request);
 
-        System.out.printf("Received %s%n", response.getStatus().name());
 
-        for (Bank.Transaction t : response.getTransactionsList()) {
-            try {
-                System.out.printf("%s -> %s - amount: %s%n",
-                        Crypto.keyAsShortString(Crypto.decodePublicKey(t.getSourcePublicKey())),
-                        Crypto.keyAsShortString(Crypto.decodePublicKey(t.getDestinationPublicKey())),
-                        t.getAmount()
-                        );
-            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-                e.printStackTrace();
-            }
-        }
     }
 }
