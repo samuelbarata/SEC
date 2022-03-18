@@ -1,3 +1,4 @@
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank.*;
@@ -8,62 +9,55 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 class ClientTest {
     private BankClient client;
+    PublicKey publicKey1, publicKey2;
 
     public ClientTest() {
         String target = System.getProperty("target");
         client = new BankClient(target);
-    }
-
-    private void openAccount(PublicKey publicKey) {
-        System.out.printf("Attempting to open an account with public key %s%n",
-                Crypto.keyAsShortString(publicKey));
-        OpenAccountResponse response = client.openAccount(publicKey);
-        System.out.printf("Received %s%n", response.getStatus().name());
-    }
-
-    private void sendAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount) {
-        System.out.printf("Attempting to create a transaction from %s to %s with amount %s%n",
-                Crypto.keyAsShortString(sourcePublicKey),
-                Crypto.keyAsShortString(destinationPublicKey),
-                amount);
-        SendAmountResponse response = client.sendAmount(sourcePublicKey, destinationPublicKey, amount);
-        System.out.printf("Received %s%n", response.getStatus().name());
-    }
-
-    private void checkAccount(PublicKey publicKey) {
-        System.out.printf("Checking account with public key %s%n",
-                Crypto.keyAsShortString(publicKey));
-        CheckAccountResponse response = client.checkAccount(publicKey);
-        System.out.printf("Received %s%n", response.getStatus().name());
-        System.out.printf("Balance: %s%n", response.getBalance());
-        System.out.println("Transactions:");
-        for (Bank.Transaction t : response.getTransactionsList()) {
-            try {
-                System.out.printf("- %s -> %s - amount: %s%n",
-                        Crypto.keyAsShortString(Crypto.decodePublicKey(t.getSourcePublicKey())),
-                        Crypto.keyAsShortString(Crypto.decodePublicKey(t.getDestinationPublicKey())),
-                        t.getAmount()
-                );
-            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-                e.printStackTrace();
-            }
-        }
+        publicKey1 = (PublicKey) Crypto.readKeyOrExit("./keys/1/id.pub", "pub");
+        publicKey2 = (PublicKey) Crypto.readKeyOrExit("./keys/2/id.pub", "pub");
     }
 
     @Test
-    void justAnExample() {
-        PublicKey publicKey1 = (PublicKey) Crypto.readKeyOrExit("./keys/1/id.pub", "pub");
-        PublicKey publicKey2 = (PublicKey) Crypto.readKeyOrExit("./keys/2/id.pub", "pub");
+    @Order(1)
+    void correctUsage() throws NoSuchAlgorithmException, InvalidKeySpecException {
+        OpenAccountResponse openAccountResponse;
+        CheckAccountResponse checkAccountResponse;
+        SendAmountResponse sendAmountResponse;
 
-        // anonymous blocks to shadow response
-        openAccount(publicKey1);
-        openAccount(publicKey2);
-        checkAccount(publicKey1);
-        checkAccount(publicKey2);
-        sendAmount(publicKey1, publicKey2, "123.45");
-        checkAccount(publicKey1);
-        checkAccount(publicKey2);
+        // Create Account
+        openAccountResponse = client.openAccount(publicKey1);
+        assertEquals(OpenAccountResponse.Status.SUCCESS, openAccountResponse.getStatus());
+        openAccountResponse = client.openAccount(publicKey2);
+        assertEquals(OpenAccountResponse.Status.SUCCESS, openAccountResponse.getStatus());
+
+        // Check Account
+        checkAccountResponse = client.checkAccount(publicKey1);
+        assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
+        assertEquals("1000", checkAccountResponse.getBalance());
+        assertEquals(0, checkAccountResponse.getTransactionsList().size());
+
+        // Send Amount
+        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "100");
+        assertEquals(SendAmountResponse.Status.SUCCESS, sendAmountResponse.getStatus());
+
+        // Check Source Account
+        checkAccountResponse = client.checkAccount(publicKey1);
+        assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
+        assertEquals("900", checkAccountResponse.getBalance());
+        assertEquals(0, checkAccountResponse.getTransactionsList().size());
+
+        // Check Destination Account
+        checkAccountResponse = client.checkAccount(publicKey2);
+        assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
+        assertEquals("1000", checkAccountResponse.getBalance());
+        assertEquals(1, checkAccountResponse.getTransactionsList().size());
+        assertEquals(publicKey1, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getSourcePublicKey()));
+        assertEquals(publicKey2, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getDestinationPublicKey()));
+        assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getAmount());
     }
 }
