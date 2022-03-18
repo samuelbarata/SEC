@@ -52,7 +52,7 @@ public class BankClient {
         return stub.sendAmount(request);
     }
 
-    public Bank.ReceiveAmountResponse receiveAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount) {
+    public Bank.ReceiveAmountResponse receiveAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount, boolean accept) {
         Bank.Transaction transaction = Bank.Transaction
                 .newBuilder()
                 .setSourcePublicKey(Crypto.encodePublicKey(sourcePublicKey))
@@ -63,6 +63,7 @@ public class BankClient {
         Bank.ReceiveAmountRequest request = Bank.ReceiveAmountRequest
                 .newBuilder()
                 .setTransaction(transaction)
+                .setAccept(accept)
                 .build();
 
         return stub.receiveAmount(request);

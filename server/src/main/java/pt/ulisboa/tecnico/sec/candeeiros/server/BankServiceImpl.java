@@ -213,18 +213,26 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 				destinationAccount.getTransactionQueue().remove(destinationAccount.getTransactionQueue().indexOf(transaction));
 
-				System.out.println(amount);
-				System.out.println(destinationAccount.getBalance());
-				destinationAccount.setBalance(destinationAccount.getBalance().add(amount));
-				System.out.println(destinationAccount.getBalance());
+				if (request.getAccept()) {
+					destinationAccount.setBalance(destinationAccount.getBalance().add(amount));
+					destinationAccount.getTransactionHistory().add(transaction);
+					sourceAccount.getTransactionHistory().add(transaction);
 
-				destinationAccount.getTransactionHistory().add(transaction);
-				sourceAccount.getTransactionHistory().add(transaction);
+					logger.info("Applied transaction: {} -> {} (amount: {})",
+							Crypto.keyAsShortString(sourceKey),
+							Crypto.keyAsShortString(destinationKey),
+							amount);
+				} else {
+					System.out.println(amount);
+					System.out.println(sourceAccount.getBalance());
+					sourceAccount.setBalance(sourceAccount.getBalance().add(amount));
+					System.out.println(sourceAccount.getBalance());
 
-				logger.info("Applied transaction: {} -> {} (amount: {})",
-						Crypto.keyAsShortString(sourceKey),
-						Crypto.keyAsShortString(destinationKey),
-						amount);
+					logger.info("Rejected transaction: {} -> {} (amount: {})",
+							Crypto.keyAsShortString(sourceKey),
+							Crypto.keyAsShortString(destinationKey),
+							amount);
+				}
 				break;
 		}
 
