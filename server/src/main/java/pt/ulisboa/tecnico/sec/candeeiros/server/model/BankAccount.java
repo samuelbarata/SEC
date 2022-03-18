@@ -17,6 +17,10 @@ public class BankAccount {
         return transactionQueue;
     }
 
+    public List<Transaction> getTransactionHistory() {
+        return transactionHistory;
+    }
+
     public BankAccount(PublicKey publicKey) {
         if (publicKey == null) {
             throw new NullPointerException();

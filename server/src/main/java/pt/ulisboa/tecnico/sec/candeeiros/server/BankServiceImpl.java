@@ -169,4 +169,69 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		responseObserver.onNext(response.build());
 		responseObserver.onCompleted();
 	}
+
+	private Bank.ReceiveAmountResponse.Status receiveAmountStatus(Bank.ReceiveAmountRequest request) {
+		try {
+			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
+
+			if (!bank.accountExists(destinationKey))
+				return Bank.ReceiveAmountResponse.Status.INVALID_KEY;
+			BigDecimal amount = new BigDecimal(request.getTransaction().getAmount());
+			if (!bank.getAccount(destinationKey).getTransactionQueue().contains(new Transaction(sourceKey, destinationKey, amount)))
+				return Bank.ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION;
+			return Bank.ReceiveAmountResponse.Status.SUCCESS;
+		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+			return Bank.ReceiveAmountResponse.Status.INVALID_KEY_FORMAT;
+		} catch (NumberFormatException e) {
+			return Bank.ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION;
+		}
+	}
+
+	@Override
+	public void receiveAmount(Bank.ReceiveAmountRequest request, StreamObserver<Bank.ReceiveAmountResponse> responseObserver) {
+		Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request);
+
+		logger.info("Got request to accept transaction. Status: {}", status);
+
+		switch (status) {
+			case SUCCESS:
+				PublicKey sourceKey = null;
+				PublicKey destinationKey = null;
+				try {
+					sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
+					destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+				} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+					// Should never happen
+					e.printStackTrace();
+				}
+				BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
+				Transaction transaction = new Transaction(sourceKey, destinationKey, amount);
+
+				BankAccount destinationAccount = bank.getAccount(destinationKey);
+				BankAccount sourceAccount = bank.getAccount(sourceKey);
+
+				destinationAccount.getTransactionQueue().remove(destinationAccount.getTransactionQueue().indexOf(transaction));
+
+				System.out.println(amount);
+				System.out.println(destinationAccount.getBalance());
+				destinationAccount.setBalance(destinationAccount.getBalance().add(amount));
+				System.out.println(destinationAccount.getBalance());
+
+				destinationAccount.getTransactionHistory().add(transaction);
+				sourceAccount.getTransactionHistory().add(transaction);
+
+				logger.info("Applied transaction: {} -> {} (amount: {})",
+						Crypto.keyAsShortString(sourceKey),
+						Crypto.keyAsShortString(destinationKey),
+						amount);
+				break;
+		}
+
+		Bank.ReceiveAmountResponse response = Bank.ReceiveAmountResponse.newBuilder()
+				.setStatus(status)
+				.build();
+		responseObserver.onNext(response);
+		responseObserver.onCompleted();
+	}
 }

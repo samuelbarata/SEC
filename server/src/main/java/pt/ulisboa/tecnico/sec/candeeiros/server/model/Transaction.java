@@ -2,6 +2,7 @@ package pt.ulisboa.tecnico.sec.candeeiros.server.model;
 
 import java.math.BigDecimal;
 import java.security.PublicKey;
+import java.util.Objects;
 import java.util.UUID;
 
 public class Transaction {
@@ -24,5 +25,18 @@ public class Transaction {
 
     public BigDecimal getAmount() {
         return amount;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Transaction that = (Transaction) o;
+        return source.equals(that.source) && destination.equals(that.destination) && amount.equals(that.amount);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(source, destination, amount);
     }
 }

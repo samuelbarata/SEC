@@ -29,6 +29,7 @@ class ClientTest {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
+        ReceiveAmountResponse receiveAmountResponse;
 
         // Create Account
         openAccountResponse = client.openAccount(publicKey1);
@@ -60,6 +61,16 @@ class ClientTest {
         assertEquals(publicKey1, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getSourcePublicKey()));
         assertEquals(publicKey2, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getDestinationPublicKey()));
         assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getAmount());
+
+        // Accept Transaction
+        receiveAmountResponse = client.receiveAmount(publicKey1, publicKey2, "100");
+        assertEquals(ReceiveAmountResponse.Status.SUCCESS, receiveAmountResponse.getStatus());
+
+        // Check Destination Account
+        checkAccountResponse = client.checkAccount(publicKey2);
+        assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
+        assertEquals("1100", checkAccountResponse.getBalance());
+        assertEquals(0, checkAccountResponse.getTransactionsList().size());
     }
 
     @Test
@@ -68,6 +79,7 @@ class ClientTest {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
+        ReceiveAmountResponse receiveAmountResponse;
 
         // Create accounts that already exist
         openAccountResponse = client.openAccount(publicKey1);
@@ -88,5 +100,16 @@ class ClientTest {
         // Send amount bigger than balance
         sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "10000");
         assertEquals(SendAmountResponse.Status.NOT_ENOUGH_BALANCE, sendAmountResponse.getStatus());
+
+        // Accept transaction that does not exist
+        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "100");
+        assertEquals(SendAmountResponse.Status.SUCCESS, sendAmountResponse.getStatus());
+
+        receiveAmountResponse = client.receiveAmount(publicKey1, publicKey2, "200");
+        assertEquals(ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION, receiveAmountResponse.getStatus());
+        receiveAmountResponse = client.receiveAmount(publicKey3, publicKey2, "100");
+        assertEquals(ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION, receiveAmountResponse.getStatus());
+        receiveAmountResponse = client.receiveAmount(publicKey1, publicKey3, "100");
+        assertEquals(ReceiveAmountResponse.Status.INVALID_KEY, receiveAmountResponse.getStatus());
     }
 }

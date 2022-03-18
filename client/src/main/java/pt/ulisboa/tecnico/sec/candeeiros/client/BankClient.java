@@ -52,6 +52,22 @@ public class BankClient {
         return stub.sendAmount(request);
     }
 
+    public Bank.ReceiveAmountResponse receiveAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount) {
+        Bank.Transaction transaction = Bank.Transaction
+                .newBuilder()
+                .setSourcePublicKey(Crypto.encodePublicKey(sourcePublicKey))
+                .setDestinationPublicKey(Crypto.encodePublicKey(destinationPublicKey))
+                .setAmount(amount)
+                .build();
+
+        Bank.ReceiveAmountRequest request = Bank.ReceiveAmountRequest
+                .newBuilder()
+                .setTransaction(transaction)
+                .build();
+
+        return stub.receiveAmount(request);
+    }
+
     public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) {
         Bank.CheckAccountRequest request = Bank.CheckAccountRequest.newBuilder()
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
