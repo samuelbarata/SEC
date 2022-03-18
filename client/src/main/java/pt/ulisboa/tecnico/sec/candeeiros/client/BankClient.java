@@ -6,20 +6,13 @@ import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.util.Scanner;
 
 public class BankClient {
-    private String target;
     private final ManagedChannel channel;
     private final BankServiceGrpc.BankServiceBlockingStub stub;
 
     public BankClient(String target) {
-        this.target = target;
         this.channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
         this.stub = BankServiceGrpc.newBlockingStub(channel);
     }
@@ -75,7 +68,13 @@ public class BankClient {
                 .build();
 
         return stub.checkAccount(request);
+    }
 
+    public Bank.AuditResponse audit(PublicKey publicKey) {
+        Bank.AuditRequest request = Bank.AuditRequest.newBuilder()
+                .setPublicKey(Crypto.encodePublicKey(publicKey))
+                .build();
 
+        return stub.audit(request);
     }
 }

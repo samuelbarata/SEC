@@ -76,6 +76,20 @@ message ReceiveAmountResponse {
 	Status status = 1;
 }
 
+message AuditRequest {
+	PublicKey publicKey = 1;
+}
+
+message AuditResponse {
+	enum Status {
+		SUCCESS = 0;
+		INVALID_KEY = 1;
+		INVALID_KEY_FORMAT = 2;
+	}
+	Status status = 1;
+	repeated Transaction transactions = 2;
+}
+
 
 // Defining a Service, a Service can have multiple RPC operations
 service BankService {
@@ -84,4 +98,5 @@ service BankService {
 	rpc SendAmount(SendAmountRequest) returns (SendAmountResponse);
 	rpc CheckAccount(CheckAccountRequest) returns (CheckAccountResponse);
 	rpc ReceiveAmount(ReceiveAmountRequest) returns (ReceiveAmountResponse);
+	rpc Audit(AuditRequest) returns (AuditResponse);
 }

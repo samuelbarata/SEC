@@ -9,9 +9,6 @@ import org.slf4j.LoggerFactory;
 public class BankServer {
 	private static final Logger logger = LoggerFactory.getLogger(BankServer.class);
 
-	/** Server host port. */
-	private static int port;
-
 	public static void main(String[] args) throws Exception {
 		logger.info("Ping Server");
 
@@ -28,7 +25,7 @@ public class BankServer {
 			return;
 		}
 
-		port = Integer.valueOf(args[0]);
+		int port = Integer.parseInt(args[0]);
 		final BindableService impl = new BankServiceImpl();
 
 		// Create a new server to listen on port.

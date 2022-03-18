@@ -3,7 +3,6 @@ package pt.ulisboa.tecnico.sec.candeeiros.server.model;
 import java.math.BigDecimal;
 import java.security.PublicKey;
 import java.util.Objects;
-import java.util.UUID;
 
 public class Transaction {
     private final PublicKey source, destination;

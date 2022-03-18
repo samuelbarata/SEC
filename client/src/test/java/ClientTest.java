@@ -1,6 +1,4 @@
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import pt.ulisboa.tecnico.sec.candeeiros.Bank;
+import org.junit.jupiter.api.*;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank.*;
 import pt.ulisboa.tecnico.sec.candeeiros.client.BankClient;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
@@ -12,10 +10,11 @@ import java.security.spec.InvalidKeySpecException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ClientTest {
-    private BankClient client;
-    PublicKey publicKey1, publicKey2, publicKey3;
+    private static BankClient client;
+    private static PublicKey publicKey1, publicKey2, publicKey3;
 
-    public ClientTest() {
+    @BeforeAll
+    static void startup() {
         String target = System.getProperty("target");
         client = new BankClient(target);
         publicKey1 = (PublicKey) Crypto.readKeyOrExit("./keys/1/id.pub", "pub");
@@ -30,6 +29,7 @@ class ClientTest {
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
         ReceiveAmountResponse receiveAmountResponse;
+        AuditResponse auditResponse;
 
         // Create Account
         openAccountResponse = client.openAccount(publicKey1);
@@ -41,7 +41,7 @@ class ClientTest {
         checkAccountResponse = client.checkAccount(publicKey1);
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("1000", checkAccountResponse.getBalance());
-        assertEquals(0, checkAccountResponse.getTransactionsList().size());
+        assertEquals(0, checkAccountResponse.getTransactionsCount());
 
         // Send Amount
         sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "100");
@@ -51,13 +51,13 @@ class ClientTest {
         checkAccountResponse = client.checkAccount(publicKey1);
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("900", checkAccountResponse.getBalance());
-        assertEquals(0, checkAccountResponse.getTransactionsList().size());
+        assertEquals(0, checkAccountResponse.getTransactionsCount());
 
         // Check Destination Account
         checkAccountResponse = client.checkAccount(publicKey2);
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("1000", checkAccountResponse.getBalance());
-        assertEquals(1, checkAccountResponse.getTransactionsList().size());
+        assertEquals(1, checkAccountResponse.getTransactionsCount());
         assertEquals(publicKey1, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getSourcePublicKey()));
         assertEquals(publicKey2, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getDestinationPublicKey()));
         assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getAmount());
@@ -70,7 +70,7 @@ class ClientTest {
         checkAccountResponse = client.checkAccount(publicKey2);
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("1100", checkAccountResponse.getBalance());
-        assertEquals(0, checkAccountResponse.getTransactionsList().size());
+        assertEquals(0, checkAccountResponse.getTransactionsCount());
 
         // Send Amount
         sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "100");
@@ -84,12 +84,27 @@ class ClientTest {
         checkAccountResponse = client.checkAccount(publicKey1);
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("900", checkAccountResponse.getBalance());
-        assertEquals(0, checkAccountResponse.getTransactionsList().size());
+        assertEquals(0, checkAccountResponse.getTransactionsCount());
 
         checkAccountResponse = client.checkAccount(publicKey2);
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("1100", checkAccountResponse.getBalance());
-        assertEquals(0, checkAccountResponse.getTransactionsList().size());
+        assertEquals(0, checkAccountResponse.getTransactionsCount());
+
+        // Check both accounts audits
+        auditResponse = client.audit(publicKey1);
+        assertEquals(AuditResponse.Status.SUCCESS, auditResponse.getStatus());
+        assertEquals(1, auditResponse.getTransactionsCount());
+        assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getSourcePublicKey()));
+        assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getDestinationPublicKey()));
+        assertEquals("100", auditResponse.getTransactionsList().get(0).getAmount());
+
+        auditResponse = client.audit(publicKey2);
+        assertEquals(AuditResponse.Status.SUCCESS, auditResponse.getStatus());
+        assertEquals(1, auditResponse.getTransactionsCount());
+        assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getSourcePublicKey()));
+        assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getDestinationPublicKey()));
+        assertEquals("100", auditResponse.getTransactionsList().get(0).getAmount());
     }
 
     @Test
@@ -130,5 +145,10 @@ class ClientTest {
         assertEquals(ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION, receiveAmountResponse.getStatus());
         receiveAmountResponse = client.receiveAmount(publicKey1, publicKey3, "100", true);
         assertEquals(ReceiveAmountResponse.Status.INVALID_KEY, receiveAmountResponse.getStatus());
+    }
+
+    @AfterAll
+    static void cleanup() {
+        client.shutdown();
     }
 }

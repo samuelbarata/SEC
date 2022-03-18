@@ -10,8 +10,8 @@ import java.util.Objects;
 public class BankAccount {
     private final PublicKey publicKey;
     private BigDecimal balance;
-    private List<Transaction> transactionHistory;
-    private List<Transaction> transactionQueue;
+    private final List<Transaction> transactionHistory;
+    private final List<Transaction> transactionQueue;
 
     public List<Transaction> getTransactionQueue() {
         return transactionQueue;
