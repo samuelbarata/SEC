@@ -76,6 +76,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			if (sourceKey.equals(destinationKey))
 				return Bank.SendAmountResponse.Status.DESTINATION_INVALID;
 			BigDecimal amount = new BigDecimal(request.getTransaction().getAmount());
+			if (amount.compareTo(BigDecimal.ZERO) <= 0)
+				return Bank.SendAmountResponse.Status.INVALID_NUMBER_FORMAT;
 			if (bank.getAccount(sourceKey).getBalance().compareTo(amount) < 0)
 				return Bank.SendAmountResponse.Status.NOT_ENOUGH_BALANCE;
 			return Bank.SendAmountResponse.Status.SUCCESS;

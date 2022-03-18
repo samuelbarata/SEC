@@ -131,6 +131,14 @@ class ClientTest {
         sendAmountResponse = client.sendAmount(publicKey1, publicKey1, "10");
         assertEquals(SendAmountResponse.Status.DESTINATION_INVALID, sendAmountResponse.getStatus());
 
+        // Create transactions with invalid amounts
+        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "qwe");
+        assertEquals(SendAmountResponse.Status.INVALID_NUMBER_FORMAT, sendAmountResponse.getStatus());
+        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "-100");
+        assertEquals(SendAmountResponse.Status.INVALID_NUMBER_FORMAT, sendAmountResponse.getStatus());
+        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "0");
+        assertEquals(SendAmountResponse.Status.INVALID_NUMBER_FORMAT, sendAmountResponse.getStatus());
+
         // Send amount bigger than balance
         sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "10000");
         assertEquals(SendAmountResponse.Status.NOT_ENOUGH_BALANCE, sendAmountResponse.getStatus());
