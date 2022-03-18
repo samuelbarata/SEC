@@ -11,6 +11,7 @@ import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import io.grpc.stub.StreamObserver;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.BftBank;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -20,9 +21,9 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
 	private final BftBank bank;
 
-	public BankServiceImpl() {
+	public BankServiceImpl(String ledgerFileName) throws IOException {
 		super();
-		bank = new BftBank();
+		bank = new BftBank(ledgerFileName);
 	}
 
 	private Bank.OpenAccountResponse.Status openAccountStatus(Bank.OpenAccountRequest request) {

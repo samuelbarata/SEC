@@ -19,14 +19,16 @@ public class BankServer {
 		}
 
 		// Check arguments.
-		if (args.length < 1) {
+		if (args.length < 2) {
 			logger.error("Argument(s) missing!");
 			logger.error("Usage: java {} port%n", Server.class.getName());
 			return;
 		}
 
 		int port = Integer.parseInt(args[0]);
-		final BindableService impl = new BankServiceImpl();
+		String ledgeFileName = args[1];
+		final BindableService impl = new BankServiceImpl(ledgeFileName);
+
 
 		// Create a new server to listen on port.
 		Server server = ServerBuilder.forPort(port).addService(impl).build();
