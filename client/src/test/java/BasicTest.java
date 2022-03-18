@@ -9,7 +9,7 @@ import java.security.spec.InvalidKeySpecException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class ClientTest {
+class BasicTest {
     private static BankClient client;
     private static PublicKey publicKey1, publicKey2, publicKey3;
 

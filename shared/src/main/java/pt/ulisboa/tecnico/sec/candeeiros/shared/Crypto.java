@@ -18,6 +18,18 @@ import java.util.Base64;
 public class Crypto {
 	private static final Logger logger = LoggerFactory.getLogger(Crypto.class);
 
+	public static PublicKey keyFromString(String key) throws InvalidKeySpecException {
+		try {
+			return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(
+					Base64.getDecoder().decode(key)
+			));
+		}  catch (NoSuchAlgorithmException e) {
+			logger.error("Unreachable Block. No such algorithm RSA");
+			e.printStackTrace();
+			return null;
+		}
+	}
+
 	public static String keyAsString(Key key) {
 		return new String(Base64.getEncoder().encode(key.getEncoded()));
 	}
