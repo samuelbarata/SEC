@@ -13,18 +13,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ClientTest {
     private BankClient client;
-    PublicKey publicKey1, publicKey2;
+    PublicKey publicKey1, publicKey2, publicKey3;
 
     public ClientTest() {
         String target = System.getProperty("target");
         client = new BankClient(target);
         publicKey1 = (PublicKey) Crypto.readKeyOrExit("./keys/1/id.pub", "pub");
         publicKey2 = (PublicKey) Crypto.readKeyOrExit("./keys/2/id.pub", "pub");
+        publicKey3 = (PublicKey) Crypto.readKeyOrExit("./keys/3/id.pub", "pub");
     }
 
     @Test
     @Order(1)
-    void correctUsage() throws NoSuchAlgorithmException, InvalidKeySpecException {
+    void correctUsageTest() throws NoSuchAlgorithmException, InvalidKeySpecException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
@@ -59,5 +60,33 @@ class ClientTest {
         assertEquals(publicKey1, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getSourcePublicKey()));
         assertEquals(publicKey2, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getDestinationPublicKey()));
         assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getAmount());
+    }
+
+    @Test
+    @Order(2)
+    void incorrectUsageTest() {
+        OpenAccountResponse openAccountResponse;
+        CheckAccountResponse checkAccountResponse;
+        SendAmountResponse sendAmountResponse;
+
+        // Create accounts that already exist
+        openAccountResponse = client.openAccount(publicKey1);
+        assertEquals(OpenAccountResponse.Status.ALREADY_EXISTED, openAccountResponse.getStatus());
+
+        // Check account that doesn't exist
+        checkAccountResponse = client.checkAccount(publicKey3);
+        assertEquals(CheckAccountResponse.Status.INVALID_KEY, checkAccountResponse.getStatus());
+
+        // Send amount from/to account that doesn't exit or to self
+        sendAmountResponse = client.sendAmount(publicKey3, publicKey1, "10");
+        assertEquals(SendAmountResponse.Status.SOURCE_INVALID, sendAmountResponse.getStatus());
+        sendAmountResponse = client.sendAmount(publicKey1, publicKey3, "10");
+        assertEquals(SendAmountResponse.Status.DESTINATION_INVALID, sendAmountResponse.getStatus());
+        sendAmountResponse = client.sendAmount(publicKey1, publicKey1, "10");
+        assertEquals(SendAmountResponse.Status.DESTINATION_INVALID, sendAmountResponse.getStatus());
+
+        // Send amount bigger than balance
+        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "10000");
+        assertEquals(SendAmountResponse.Status.NOT_ENOUGH_BALANCE, sendAmountResponse.getStatus());
     }
 }
