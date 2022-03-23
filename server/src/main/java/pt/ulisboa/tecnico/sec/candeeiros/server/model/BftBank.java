@@ -9,16 +9,17 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
+// TODO fine tune synchronization
 public class BftBank {
     private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
     private final Map<PublicKey, BankAccount> accounts;
     private final BufferedWriter ledgerWriter;
 
     public BftBank(String ledgerFileName) throws IOException {
-        accounts = new ConcurrentHashMap<>();
+        accounts = new HashMap<>();
 
         logger.info("Trying to read ledger at {}", ledgerFileName);
         parseLedger(ledgerFileName);
@@ -26,7 +27,7 @@ public class BftBank {
         ledgerWriter = new BufferedWriter(new FileWriter(ledgerFileName, true));
     }
 
-    private void parseLedger(String ledgerFileName) throws IOException {
+    private synchronized void parseLedger(String ledgerFileName) throws IOException {
         new File(ledgerFileName).createNewFile(); // Will create file if it doesn't exist
         BufferedReader br = new BufferedReader(new FileReader(ledgerFileName));
         StringBuilder line = new StringBuilder();
@@ -45,7 +46,7 @@ public class BftBank {
         logger.info("Read {} lines from ledger file", count);
     }
 
-    private void parseLine(String line) {
+    private synchronized void parseLine(String line) {
         line = line.substring(0, line.length() - 1);
         String[] args = line.split("-");
         switch (args[0]) {
@@ -104,15 +105,15 @@ public class BftBank {
         }
     }
 
-    public boolean accountExists(PublicKey key) {
+    public synchronized boolean accountExists(PublicKey key) {
         return accounts.containsKey(key);
     }
 
-    private void createAccountNoLog(PublicKey key) {
+    private synchronized void createAccountNoLog(PublicKey key) {
         accounts.put(key, new BankAccount(key));
     }
 
-    public void createAccount(PublicKey key) {
+    public synchronized void createAccount(PublicKey key) {
         createAccountNoLog(key);
         try {
             ledgerWriter.append("create-");
@@ -126,14 +127,14 @@ public class BftBank {
         }
     }
 
-    private void addTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount) {
+    private synchronized void addTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount) {
         Transaction transaction = new Transaction(source, destination, amount);
         BankAccount sourceAccount = getAccount(source);
         sourceAccount.setBalance(sourceAccount.getBalance().subtract(amount));
         accounts.get(destination).getTransactionQueue().add(transaction);
     }
 
-    public void addTransaction(PublicKey source, PublicKey destination, BigDecimal amount) {
+    public synchronized void addTransaction(PublicKey source, PublicKey destination, BigDecimal amount) {
         addTransactionNoLog(source, destination, amount);
         try {
             ledgerWriter.append("add-");
@@ -151,7 +152,7 @@ public class BftBank {
         }
     }
 
-    private void acceptTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount) {
+    private synchronized void acceptTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount) {
         Transaction transaction = new Transaction(source, destination, amount);
         BankAccount destinationAccount = getAccount(destination);
         BankAccount sourceAccount = getAccount(source);
@@ -164,7 +165,7 @@ public class BftBank {
         sourceAccount.getTransactionHistory().add(transaction);
     }
 
-    public void acceptTransaction(PublicKey source, PublicKey destination, BigDecimal amount) {
+    public synchronized void acceptTransaction(PublicKey source, PublicKey destination, BigDecimal amount) {
         acceptTransactionNoLog(source, destination, amount);
         try {
             ledgerWriter.append("accept-");
@@ -182,7 +183,7 @@ public class BftBank {
         }
     }
 
-    private void rejectTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount) {
+    private synchronized void rejectTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount) {
         Transaction transaction = new Transaction(source, destination, amount);
         BankAccount destinationAccount = getAccount(destination);
         BankAccount sourceAccount = getAccount(source);
@@ -191,7 +192,7 @@ public class BftBank {
         sourceAccount.setBalance(sourceAccount.getBalance().add(amount));
     }
 
-    public void rejectTransaction(PublicKey source, PublicKey destination, BigDecimal amount) {
+    public synchronized void rejectTransaction(PublicKey source, PublicKey destination, BigDecimal amount) {
         rejectTransactionNoLog(source, destination, amount);
         try {
             ledgerWriter.append("reject-");
@@ -209,7 +210,7 @@ public class BftBank {
         }
     }
 
-    public BankAccount getAccount(PublicKey key) {
+    public synchronized BankAccount getAccount(PublicKey key) {
         return accounts.get(key);
     }
 }
