@@ -39,29 +39,31 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.OpenAccountResponse> responseObserver) {
-		Bank.OpenAccountResponse.Status status = openAccountStatus(request);
+		synchronized (bank) {
+			Bank.OpenAccountResponse.Status status = openAccountStatus(request);
 
-		logger.info("Got request to open account. Status: {}", status);
+			logger.info("Got request to open account. Status: {}", status);
 
-		switch (status) {
-			case SUCCESS:
-				PublicKey publicKey = null;
-				try {
-					publicKey = Crypto.decodePublicKey(request.getPublicKey());
-				} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-					// Should never happen
-					e.printStackTrace();
-				}
-				bank.createAccount(publicKey);
-				logger.info("Opened account with public key {}.", Crypto.keyAsShortString(publicKey));
-				break;
+			switch (status) {
+				case SUCCESS:
+					PublicKey publicKey = null;
+					try {
+						publicKey = Crypto.decodePublicKey(request.getPublicKey());
+					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+						// Should never happen
+						e.printStackTrace();
+					}
+					bank.createAccount(publicKey);
+					logger.info("Opened account with public key {}.", Crypto.keyAsShortString(publicKey));
+					break;
+			}
+
+			Bank.OpenAccountResponse response = Bank.OpenAccountResponse.newBuilder()
+					.setStatus(status)
+					.build();
+			responseObserver.onNext(response);
+			responseObserver.onCompleted();
 		}
-
-		Bank.OpenAccountResponse response = Bank.OpenAccountResponse.newBuilder()
-				.setStatus(status)
-				.build();
-		responseObserver.onNext(response);
-		responseObserver.onCompleted();
 	}
 
 	private Bank.SendAmountResponse.Status sendAmountStatus(Bank.SendAmountRequest request) {
@@ -90,37 +92,40 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void sendAmount(Bank.SendAmountRequest request, StreamObserver<Bank.SendAmountResponse> responseObserver) {
-		Bank.SendAmountResponse.Status status = sendAmountStatus(request);
+		synchronized (bank) {
+			Bank.SendAmountResponse.Status status = sendAmountStatus(request);
 
-		logger.info("Got request to create transaction. Status: {}", status);
+			logger.info("Got request to create transaction. Status: {}", status);
 
-		switch (status) {
-			case SUCCESS:
-				PublicKey sourceKey = null;
-				PublicKey destinationKey = null;
-				try {
-					sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
-					destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
-				} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-					// Should never happen
-					e.printStackTrace();
-				}
-				BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
+			switch (status) {
+				case SUCCESS:
+					PublicKey sourceKey = null;
+					PublicKey destinationKey = null;
+					try {
+						sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
+						destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+					} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+						// Should never happen
+						e.printStackTrace();
+					}
+					BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
 
-				bank.addTransaction(sourceKey, destinationKey, amount);
+					bank.addTransaction(sourceKey, destinationKey, amount);
 
-				logger.info("Created transaction: {} -> {} (amount: {})",
-						Crypto.keyAsShortString(sourceKey),
-						Crypto.keyAsShortString(destinationKey),
-						amount);
-				break;
+					logger.info("Created transaction: {} -> {} (amount: {})",
+							Crypto.keyAsShortString(sourceKey),
+							Crypto.keyAsShortString(destinationKey),
+							amount);
+					break;
+			}
+
+
+			Bank.SendAmountResponse response = Bank.SendAmountResponse.newBuilder()
+					.setStatus(status)
+					.build();
+			responseObserver.onNext(response);
+			responseObserver.onCompleted();
 		}
-
-		Bank.SendAmountResponse response = Bank.SendAmountResponse.newBuilder()
-				.setStatus(status)
-				.build();
-		responseObserver.onNext(response);
-		responseObserver.onCompleted();
 	}
 
 	private Bank.CheckAccountResponse.Status checkAccountStatus(Bank.CheckAccountRequest request) {
@@ -136,39 +141,41 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void checkAccount(Bank.CheckAccountRequest request, StreamObserver<Bank.CheckAccountResponse> responseObserver) {
-		Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
-		logger.info("Got check account. Status: {}", status);
+		synchronized (bank) {
+			Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
+			logger.info("Got check account. Status: {}", status);
 
-		Bank.CheckAccountResponse.Builder response = Bank.CheckAccountResponse
-				.newBuilder()
-				.setStatus(status);
+			Bank.CheckAccountResponse.Builder response = Bank.CheckAccountResponse
+					.newBuilder()
+					.setStatus(status);
 
-		switch (status) {
-			case SUCCESS:
-				PublicKey key = null;
-				try {
-					key = Crypto.decodePublicKey(request.getPublicKey());
-				} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-					// This should not happen
-					e.printStackTrace();
-				}
+			switch (status) {
+				case SUCCESS:
+					PublicKey key = null;
+					try {
+						key = Crypto.decodePublicKey(request.getPublicKey());
+					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+						// This should not happen
+						e.printStackTrace();
+					}
 
-				BankAccount account = bank.getAccount(key);
-				response.setBalance(account.getBalance().toString());
+					BankAccount account = bank.getAccount(key);
+					response.setBalance(account.getBalance().toString());
 
-				for (Transaction t : account.getTransactionQueue()) {
-					Bank.Transaction transaction = Bank.Transaction.newBuilder()
-							.setAmount(t.getAmount().toString())
-							.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
-							.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
-							.build();
-					response.addTransactions(transaction);
-				}
-				break;
+					for (Transaction t : account.getTransactionQueue()) {
+						Bank.Transaction transaction = Bank.Transaction.newBuilder()
+								.setAmount(t.getAmount().toString())
+								.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
+								.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+								.build();
+						response.addTransactions(transaction);
+					}
+					break;
+			}
+
+			responseObserver.onNext(response.build());
+			responseObserver.onCompleted();
 		}
-
-		responseObserver.onNext(response.build());
-		responseObserver.onCompleted();
 	}
 
 	private Bank.ReceiveAmountResponse.Status receiveAmountStatus(Bank.ReceiveAmountRequest request) {
@@ -191,46 +198,48 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void receiveAmount(Bank.ReceiveAmountRequest request, StreamObserver<Bank.ReceiveAmountResponse> responseObserver) {
-		Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request);
+		synchronized (bank) {
+			Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request);
 
-		logger.info("Got request to accept transaction. Status: {}", status);
+			logger.info("Got request to accept transaction. Status: {}", status);
 
-		switch (status) {
-			case SUCCESS:
-				PublicKey sourceKey = null;
-				PublicKey destinationKey = null;
-				try {
-					sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
-					destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
-				} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-					// Should never happen
-					e.printStackTrace();
-				}
-				BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
+			switch (status) {
+				case SUCCESS:
+					PublicKey sourceKey = null;
+					PublicKey destinationKey = null;
+					try {
+						sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
+						destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+					} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+						// Should never happen
+						e.printStackTrace();
+					}
+					BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
 
-				if (request.getAccept()) {
-					bank.acceptTransaction(sourceKey, destinationKey, amount);
+					if (request.getAccept()) {
+						bank.acceptTransaction(sourceKey, destinationKey, amount);
 
-					logger.info("Applied transaction: {} -> {} (amount: {})",
-							Crypto.keyAsShortString(sourceKey),
-							Crypto.keyAsShortString(destinationKey),
-							amount);
-				} else {
-					bank.rejectTransaction(sourceKey, destinationKey, amount);
+						logger.info("Applied transaction: {} -> {} (amount: {})",
+								Crypto.keyAsShortString(sourceKey),
+								Crypto.keyAsShortString(destinationKey),
+								amount);
+					} else {
+						bank.rejectTransaction(sourceKey, destinationKey, amount);
 
-					logger.info("Rejected transaction: {} -> {} (amount: {})",
-							Crypto.keyAsShortString(sourceKey),
-							Crypto.keyAsShortString(destinationKey),
-							amount);
-				}
-				break;
+						logger.info("Rejected transaction: {} -> {} (amount: {})",
+								Crypto.keyAsShortString(sourceKey),
+								Crypto.keyAsShortString(destinationKey),
+								amount);
+					}
+					break;
+			}
+
+			Bank.ReceiveAmountResponse response = Bank.ReceiveAmountResponse.newBuilder()
+					.setStatus(status)
+					.build();
+			responseObserver.onNext(response);
+			responseObserver.onCompleted();
 		}
-
-		Bank.ReceiveAmountResponse response = Bank.ReceiveAmountResponse.newBuilder()
-				.setStatus(status)
-				.build();
-		responseObserver.onNext(response);
-		responseObserver.onCompleted();
 	}
 
 	private Bank.AuditResponse.Status auditStatus(Bank.AuditRequest request) {
@@ -246,36 +255,38 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void audit(Bank.AuditRequest request, StreamObserver<Bank.AuditResponse> responseObserver) {
-		Bank.AuditResponse.Status status = auditStatus(request);
+		synchronized (bank) {
+			Bank.AuditResponse.Status status = auditStatus(request);
 
-		logger.info("Got request to audit account. Status {}", status.name());
+			logger.info("Got request to audit account. Status {}", status.name());
 
-		Bank.AuditResponse.Builder response = Bank.AuditResponse.newBuilder().setStatus(status);
+			Bank.AuditResponse.Builder response = Bank.AuditResponse.newBuilder().setStatus(status);
 
-		switch (status) {
-			case SUCCESS:
-				PublicKey key = null;
-				try {
-					key = Crypto.decodePublicKey(request.getPublicKey());
-				} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-					// This should not happen
-					e.printStackTrace();
-				}
+			switch (status) {
+				case SUCCESS:
+					PublicKey key = null;
+					try {
+						key = Crypto.decodePublicKey(request.getPublicKey());
+					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+						// This should not happen
+						e.printStackTrace();
+					}
 
-				BankAccount account = bank.getAccount(key);
+					BankAccount account = bank.getAccount(key);
 
-				for (Transaction t : account.getTransactionHistory()) {
-					Bank.Transaction transaction = Bank.Transaction.newBuilder()
-							.setAmount(t.getAmount().toString())
-							.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
-							.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
-							.build();
-					response.addTransactions(transaction);
-				}
-				break;
+					for (Transaction t : account.getTransactionHistory()) {
+						Bank.Transaction transaction = Bank.Transaction.newBuilder()
+								.setAmount(t.getAmount().toString())
+								.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
+								.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+								.build();
+						response.addTransactions(transaction);
+					}
+					break;
+			}
+
+			responseObserver.onNext(response.build());
+			responseObserver.onCompleted();
 		}
-
-		responseObserver.onNext(response.build());
-		responseObserver.onCompleted();
 	}
 }
