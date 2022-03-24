@@ -1,6 +1,7 @@
 import org.junit.jupiter.api.*;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank.*;
 import pt.ulisboa.tecnico.sec.candeeiros.client.BankClient;
+import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedChallengeException;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
@@ -9,6 +10,7 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 class BasicTest {
     private static BankClient client;
@@ -25,7 +27,7 @@ class BasicTest {
 
     @Test
     @Order(1)
-    void correctUsageTest() throws NoSuchAlgorithmException, InvalidKeySpecException {
+    void correctUsageTest() throws NoSuchAlgorithmException, InvalidKeySpecException, FailedChallengeException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;

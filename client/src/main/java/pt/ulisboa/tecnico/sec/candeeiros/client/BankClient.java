@@ -5,6 +5,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
+import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedChallengeException;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
 import java.security.PublicKey;
@@ -81,7 +82,7 @@ public class BankClient {
         return stub.audit(request);
     }
 
-    public Bank.NonceNegotiationResponse nonceNegotiation(PublicKey publicKey) {
+    public Bank.NonceNegotiationResponse nonceNegotiation(PublicKey publicKey) throws FailedChallengeException {
         SecureRandom sr = new SecureRandom();
         byte[] challenge = new byte[64];
         sr.nextBytes(challenge);
@@ -97,8 +98,7 @@ public class BankClient {
                 Crypto.challenge(challenge),
                 response.getChallenge().toByteArray()
         )) {
-            // TODO throw exception
-            System.out.println("Challenge failed");
+            throw new FailedChallengeException();
         }
 
         return response;
