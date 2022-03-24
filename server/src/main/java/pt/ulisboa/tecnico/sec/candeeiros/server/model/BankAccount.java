@@ -1,7 +1,10 @@
 package pt.ulisboa.tecnico.sec.candeeiros.server.model;
 
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
+
 import java.math.BigDecimal;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,6 +15,7 @@ public class BankAccount {
     private BigDecimal balance;
     private final List<Transaction> transactionHistory;
     private final List<Transaction> transactionQueue;
+    private Nonce nonce;
 
     public List<Transaction> getTransactionQueue() {
         return transactionQueue;
@@ -29,6 +33,12 @@ public class BankAccount {
         this.balance = new BigDecimal(1000);
         this.transactionHistory = Collections.synchronizedList(new ArrayList<>());
         this.transactionQueue = Collections.synchronizedList(new ArrayList<>());
+        SecureRandom sr = new SecureRandom();
+        this.nonce = Nonce.newNonce();
+    }
+
+    public Nonce getNonce() {
+        return nonce;
     }
 
     public PublicKey getPublicKey() {

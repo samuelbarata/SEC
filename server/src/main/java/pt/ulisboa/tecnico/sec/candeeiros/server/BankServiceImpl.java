@@ -1,5 +1,6 @@
 package pt.ulisboa.tecnico.sec.candeeiros.server;
 
+import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
@@ -282,6 +283,48 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 								.build();
 						response.addTransactions(transaction);
 					}
+					break;
+			}
+
+			responseObserver.onNext(response.build());
+			responseObserver.onCompleted();
+		}
+	}
+
+	private Bank.NonceNegotiationResponse.Status nonceNegotiationStatus(Bank.NonceNegotiationRequest request) {
+		try {
+			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
+			if (!bank.accountExists(key))
+				return Bank.NonceNegotiationResponse.Status.INVALID_KEY;
+			return Bank.NonceNegotiationResponse.Status.SUCCESS;
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			return Bank.NonceNegotiationResponse.Status.INVALID_KEY_FORMAT;
+		}
+	}
+
+	@Override
+	public void nonceNegotiation(Bank.NonceNegotiationRequest request, StreamObserver<Bank.NonceNegotiationResponse> responseObserver) {
+		synchronized (bank) {
+			Bank.NonceNegotiationResponse.Status status = nonceNegotiationStatus(request);
+			Bank.NonceNegotiationResponse.Builder response = Bank.NonceNegotiationResponse.newBuilder().setStatus(status);
+
+			logger.info("Got nonce negotiation request. Status: {}", status.name());
+
+			switch (status) {
+				case SUCCESS:
+					PublicKey key = null;
+					try {
+						key = Crypto.decodePublicKey(request.getPublicKey());
+					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+						// This should not happen
+						e.printStackTrace();
+					}
+
+					BankAccount account = bank.getAccount(key);
+
+					response.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())))
+							.setNonce(Bank.Nonce.newBuilder().setNonceBytes(ByteString.copyFrom(account.getNonce().getBytes())).build());
+
 					break;
 			}
 

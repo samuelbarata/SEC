@@ -8,11 +8,35 @@ message PublicKey {
 	bytes keyBytes = 1;
 }
 
+message Signature {
+	bytes signatureBytes = 1;
+}
+
+message Nonce {
+	bytes nonceBytes = 1;
+}
+
 message Transaction {
 	PublicKey sourcePublicKey = 1;
 	PublicKey destinationPublicKey = 2;
 	// string to avoid floats which are unsafe for exact number representations
 	string amount = 3;
+}
+
+message NonceNegotiationRequest {
+	PublicKey publicKey = 1;
+	bytes challenge = 2;
+}
+
+message NonceNegotiationResponse {
+	enum Status {
+		SUCCESS = 0;
+		INVALID_KEY = 1;
+		INVALID_KEY_FORMAT = 2;
+	}
+	Status status = 1;
+	bytes challenge = 2;
+	Nonce nonce = 3;
 }
 
 message OpenAccountRequest {
@@ -99,4 +123,5 @@ service BankService {
 	rpc CheckAccount(CheckAccountRequest) returns (CheckAccountResponse);
 	rpc ReceiveAmount(ReceiveAmountRequest) returns (ReceiveAmountResponse);
 	rpc Audit(AuditRequest) returns (AuditResponse);
+	rpc NonceNegotiation(NonceNegotiationRequest) returns (NonceNegotiationResponse);
 }

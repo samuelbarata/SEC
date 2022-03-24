@@ -2,6 +2,7 @@ import org.junit.jupiter.api.*;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank.*;
 import pt.ulisboa.tecnico.sec.candeeiros.client.BankClient;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -30,12 +31,22 @@ class BasicTest {
         SendAmountResponse sendAmountResponse;
         ReceiveAmountResponse receiveAmountResponse;
         AuditResponse auditResponse;
+        NonceNegotiationResponse nonceNegotiationResponse;
+        Nonce nonce1, nonce2;
 
         // Create Account
         openAccountResponse = client.openAccount(publicKey1);
         assertEquals(OpenAccountResponse.Status.SUCCESS, openAccountResponse.getStatus());
         openAccountResponse = client.openAccount(publicKey2);
         assertEquals(OpenAccountResponse.Status.SUCCESS, openAccountResponse.getStatus());
+
+        // Get Nonces
+        nonceNegotiationResponse = client.nonceNegotiation(publicKey1);
+        assertEquals(NonceNegotiationResponse.Status.SUCCESS, nonceNegotiationResponse.getStatus());
+        nonce1 = Nonce.newNonce(nonceNegotiationResponse.getNonce().getNonceBytes().toByteArray());
+        nonceNegotiationResponse = client.nonceNegotiation(publicKey2);
+        assertEquals(NonceNegotiationResponse.Status.SUCCESS, nonceNegotiationResponse.getStatus());
+        nonce2 = Nonce.newNonce(nonceNegotiationResponse.getNonce().getNonceBytes().toByteArray());
 
         // Check Account
         checkAccountResponse = client.checkAccount(publicKey1);

@@ -1,5 +1,6 @@
 package pt.ulisboa.tecnico.sec.candeeiros.client;
 
+import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
@@ -7,6 +8,7 @@ import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
 import java.security.PublicKey;
+import java.security.SecureRandom;
 
 public class BankClient {
     private final ManagedChannel channel;
@@ -76,5 +78,31 @@ public class BankClient {
                 .build();
 
         return stub.audit(request);
+    }
+
+    public Bank.NonceNegotiationResponse nonceNegotiation(PublicKey publicKey) {
+        SecureRandom sr = new SecureRandom();
+        byte[] challenge = new byte[64];
+        sr.nextBytes(challenge);
+
+        Bank.NonceNegotiationRequest request = Bank.NonceNegotiationRequest.newBuilder()
+                .setChallenge(ByteString.copyFrom(challenge))
+                .setPublicKey(Crypto.encodePublicKey(publicKey))
+                .build();
+
+        Bank.NonceNegotiationResponse response = stub.nonceNegotiation(request);
+
+        byte[] res = Crypto.challenge(challenge);
+        for (int i = 0; i < res.length; i++) {
+            System.out.println(res[i]);
+            System.out.println(response.getChallenge().toByteArray()[i]);
+        }
+
+        if (!Crypto.challenge(challenge).equals(response.getChallenge().toByteArray())) {
+            // TODO throw exception
+            System.out.println("Challenge failed");
+        }
+
+        return response;
     }
 }
