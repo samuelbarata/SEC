@@ -9,6 +9,7 @@ import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.util.Arrays;
 
 public class BankClient {
     private final ManagedChannel channel;
@@ -92,13 +93,10 @@ public class BankClient {
 
         Bank.NonceNegotiationResponse response = stub.nonceNegotiation(request);
 
-        byte[] res = Crypto.challenge(challenge);
-        for (int i = 0; i < res.length; i++) {
-            System.out.println(res[i]);
-            System.out.println(response.getChallenge().toByteArray()[i]);
-        }
-
-        if (!Crypto.challenge(challenge).equals(response.getChallenge().toByteArray())) {
+        if (!Arrays.equals(
+                Crypto.challenge(challenge),
+                response.getChallenge().toByteArray()
+        )) {
             // TODO throw exception
             System.out.println("Challenge failed");
         }
