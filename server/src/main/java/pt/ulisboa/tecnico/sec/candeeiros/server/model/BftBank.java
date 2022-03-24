@@ -29,18 +29,26 @@ public class BftBank {
 
     private synchronized void parseLedger(String ledgerFileName) throws IOException {
         new File(ledgerFileName).createNewFile(); // Will create file if it doesn't exist
-        BufferedReader br = new BufferedReader(new FileReader(ledgerFileName));
         StringBuilder line = new StringBuilder();
-        int c;
         int count = 0;
-        // read instead of readline to not parse last line if it is not finished by a \n
-        while ((c = br.read()) != -1) {
-            line.append((char) c);
-            if (c == '\n') {
-                count++;
-                parseLine(line.toString());
-                // Avoid generating new objects with new StringBuilder for each line
-                line.setLength(0);
+        try (FileReader fr = new FileReader(ledgerFileName)) {
+            BufferedReader br = new BufferedReader(fr);
+            int c;
+            // read instead of readline to not parse last line if it is not finished by a \n
+            while ((c = br.read()) != -1) {
+                line.append((char) c);
+                if (c == '\n') {
+                    count++;
+                    parseLine(line.toString());
+                    // Avoid generating new objects with new StringBuilder for each line
+                    line.setLength(0);
+                }
+            }
+        }
+        if (line.length() != 0) {
+            logger.warn("Last line does not have line feed. Assuming it is corrupted. Fixing");
+            try (RandomAccessFile f = new RandomAccessFile(ledgerFileName, "rw")) {
+                f.setLength(f.length() - line.length());
             }
         }
         logger.info("Read {} lines from ledger file", count);
