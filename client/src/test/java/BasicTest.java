@@ -127,7 +127,7 @@ class BasicTest {
 
     @Test
     @Order(2)
-    void incorrectUsageTest() throws WrongNonceException {
+    void incorrectUsageTest() throws WrongNonceException, FailedChallengeException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;

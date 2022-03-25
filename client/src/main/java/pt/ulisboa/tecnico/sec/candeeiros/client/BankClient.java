@@ -27,13 +27,43 @@ public class BankClient {
         channel.shutdown();
     }
 
-    public Bank.OpenAccountResponse openAccount(PublicKey publicKey) {
+
+    // ***** Authenticated procedures *****
+    public Bank.OpenAccountResponse openAccount(PublicKey publicKey) throws FailedChallengeException {
+        byte[] challenge = generateChallenge();
+
         Bank.OpenAccountRequest request = Bank.OpenAccountRequest.newBuilder()
+                .setPublicKey(Crypto.encodePublicKey(publicKey))
+                .setChallenge(ByteString.copyFrom(challenge))
+                .build();
+
+        Bank.OpenAccountResponse response = stub.openAccount(request);
+
+        if (response.getStatus() == Bank.OpenAccountResponse.Status.SUCCESS)
+            if (!isChallengeCorrect(challenge, response.getChallenge().toByteArray()))
+                throw new FailedChallengeException();
+
+        return response;
+    }
+
+
+    public Bank.NonceNegotiationResponse nonceNegotiation(PublicKey publicKey) throws FailedChallengeException {
+        byte[] challenge = generateChallenge();
+
+        Bank.NonceNegotiationRequest request = Bank.NonceNegotiationRequest.newBuilder()
+                .setChallenge(ByteString.copyFrom(challenge))
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
                 .build();
 
-        return stub.openAccount(request);
+        Bank.NonceNegotiationResponse response = stub.nonceNegotiation(request);
+
+        if (response.getStatus() == Bank.NonceNegotiationResponse.Status.SUCCESS)
+            if (!isChallengeCorrect(challenge, response.getChallenge().toByteArray()))
+                throw new FailedChallengeException();
+
+        return response;
     }
+
 
     public Bank.SendAmountResponse sendAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount, Nonce nonce) throws WrongNonceException {
         Bank.Transaction transaction = Bank.Transaction
@@ -59,6 +89,7 @@ public class BankClient {
         return response;
     }
 
+
     public Bank.ReceiveAmountResponse receiveAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount, boolean accept, Nonce nonce) throws WrongNonceException {
         Bank.Transaction transaction = Bank.Transaction
                 .newBuilder()
@@ -83,38 +114,48 @@ public class BankClient {
         return response;
     }
 
-    public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) {
+    // ***** Unauthenticated procedures *****
+    public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException {
+        byte[] challenge = generateChallenge();
+
         Bank.CheckAccountRequest request = Bank.CheckAccountRequest.newBuilder()
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
+                .setChallenge(ByteString.copyFrom(challenge))
                 .build();
 
-        return stub.checkAccount(request);
+        Bank.CheckAccountResponse response = stub.checkAccount(request);
+
+        if (response.getStatus() == Bank.CheckAccountResponse.Status.SUCCESS)
+            if (!isChallengeCorrect(challenge, response.getChallenge().toByteArray()))
+                throw new FailedChallengeException();
+
+        return response;
     }
 
-    public Bank.AuditResponse audit(PublicKey publicKey) {
+    public Bank.AuditResponse audit(PublicKey publicKey) throws FailedChallengeException {
+        byte[] challenge = generateChallenge();
+
         Bank.AuditRequest request = Bank.AuditRequest.newBuilder()
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
+                .setChallenge(ByteString.copyFrom(challenge))
                 .build();
 
-        return stub.audit(request);
+        Bank.AuditResponse response = stub.audit(request);
+
+        if (response.getStatus() == Bank.AuditResponse.Status.SUCCESS)
+            if (!isChallengeCorrect(challenge, response.getChallenge().toByteArray()))
+                throw new FailedChallengeException();
+
+        return response;
     }
 
-    public Bank.NonceNegotiationResponse nonceNegotiation(PublicKey publicKey) throws FailedChallengeException {
+
+
+    private byte[] generateChallenge() {
         SecureRandom sr = new SecureRandom();
         byte[] challenge = new byte[64];
         sr.nextBytes(challenge);
-
-        Bank.NonceNegotiationRequest request = Bank.NonceNegotiationRequest.newBuilder()
-                .setChallenge(ByteString.copyFrom(challenge))
-                .setPublicKey(Crypto.encodePublicKey(publicKey))
-                .build();
-
-        Bank.NonceNegotiationResponse response = stub.nonceNegotiation(request);
-
-        if (!isChallengeCorrect(challenge, response.getChallenge().toByteArray()))
-            throw new FailedChallengeException();
-
-        return response;
+        return challenge;
     }
 
     private boolean isChallengeCorrect(byte[] challenge, byte[] response) {

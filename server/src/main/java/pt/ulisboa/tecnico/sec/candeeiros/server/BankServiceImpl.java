@@ -28,6 +28,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		bank = new BftBank(ledgerFileName);
 	}
 
+	// ***** Authenticated procedures *****
 	private Bank.OpenAccountResponse.Status openAccountStatus(Bank.OpenAccountRequest request) {
 		try {
 			PublicKey publicKey = Crypto.decodePublicKey(request.getPublicKey());
@@ -46,6 +47,9 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			logger.info("Got request to open account. Status: {}", status);
 
+			Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder()
+					.setStatus(status);
+
 			switch (status) {
 				case SUCCESS:
 					PublicKey publicKey = null;
@@ -55,18 +59,63 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 						// Should never happen
 						e.printStackTrace();
 					}
+					response.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())));
+
 					bank.createAccount(publicKey);
 					logger.info("Opened account with public key {}.", Crypto.keyAsShortString(publicKey));
 					break;
 			}
 
-			Bank.OpenAccountResponse response = Bank.OpenAccountResponse.newBuilder()
-					.setStatus(status)
-					.build();
-			responseObserver.onNext(response);
+			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
 		}
 	}
+
+
+
+	private Bank.NonceNegotiationResponse.Status nonceNegotiationStatus(Bank.NonceNegotiationRequest request) {
+		try {
+			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
+			if (!bank.accountExists(key))
+				return Bank.NonceNegotiationResponse.Status.INVALID_KEY;
+			return Bank.NonceNegotiationResponse.Status.SUCCESS;
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			return Bank.NonceNegotiationResponse.Status.INVALID_KEY_FORMAT;
+		}
+	}
+
+	@Override
+	public void nonceNegotiation(Bank.NonceNegotiationRequest request, StreamObserver<Bank.NonceNegotiationResponse> responseObserver) {
+		synchronized (bank) {
+			Bank.NonceNegotiationResponse.Status status = nonceNegotiationStatus(request);
+			Bank.NonceNegotiationResponse.Builder response = Bank.NonceNegotiationResponse.newBuilder().setStatus(status);
+
+			logger.info("Got nonce negotiation request. Status: {}", status.name());
+
+			switch (status) {
+				case SUCCESS:
+					PublicKey key = null;
+					try {
+						key = Crypto.decodePublicKey(request.getPublicKey());
+					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+						// This should not happen
+						e.printStackTrace();
+					}
+
+					BankAccount account = bank.getAccount(key);
+
+					response.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())))
+							.setNonce(Bank.Nonce.newBuilder().setNonceBytes(ByteString.copyFrom(account.getNonce().getBytes())).build());
+
+					break;
+			}
+
+			responseObserver.onNext(response.build());
+			responseObserver.onCompleted();
+		}
+	}
+
+
 
 	private Bank.SendAmountResponse.Status sendAmountStatus(Bank.SendAmountRequest request) {
 		try {
@@ -134,55 +183,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		}
 	}
 
-	private Bank.CheckAccountResponse.Status checkAccountStatus(Bank.CheckAccountRequest request) {
-		try {
-			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
-			if (!bank.accountExists(key))
-				return Bank.CheckAccountResponse.Status.INVALID_KEY;
-			return Bank.CheckAccountResponse.Status.SUCCESS;
-		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-			return Bank.CheckAccountResponse.Status.INVALID_KEY_FORMAT;
-		}
-	}
 
-	@Override
-	public void checkAccount(Bank.CheckAccountRequest request, StreamObserver<Bank.CheckAccountResponse> responseObserver) {
-		synchronized (bank) {
-			Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
-			logger.info("Got check account. Status: {}", status);
-
-			Bank.CheckAccountResponse.Builder response = Bank.CheckAccountResponse
-					.newBuilder()
-					.setStatus(status);
-
-			switch (status) {
-				case SUCCESS:
-					PublicKey key = null;
-					try {
-						key = Crypto.decodePublicKey(request.getPublicKey());
-					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-						// This should not happen
-						e.printStackTrace();
-					}
-
-					BankAccount account = bank.getAccount(key);
-					response.setBalance(account.getBalance().toString());
-
-					for (Transaction t : account.getTransactionQueue().keySet().toArray(new Transaction[0])) {
-						Bank.Transaction transaction = Bank.Transaction.newBuilder()
-								.setAmount(t.getAmount().toString())
-								.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
-								.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
-								.build();
-						response.addTransactions(transaction);
-					}
-					break;
-			}
-
-			responseObserver.onNext(response.build());
-			responseObserver.onCompleted();
-		}
-	}
 
 	private Bank.ReceiveAmountResponse.Status receiveAmountStatus(Bank.ReceiveAmountRequest request) {
 		try {
@@ -254,6 +255,61 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		}
 	}
 
+
+
+	// ***** Unauthenticated procedures *****
+	private Bank.CheckAccountResponse.Status checkAccountStatus(Bank.CheckAccountRequest request) {
+		try {
+			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
+			if (!bank.accountExists(key))
+				return Bank.CheckAccountResponse.Status.INVALID_KEY;
+			return Bank.CheckAccountResponse.Status.SUCCESS;
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			return Bank.CheckAccountResponse.Status.INVALID_KEY_FORMAT;
+		}
+	}
+
+	@Override
+	public void checkAccount(Bank.CheckAccountRequest request, StreamObserver<Bank.CheckAccountResponse> responseObserver) {
+		synchronized (bank) {
+			Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
+			logger.info("Got check account. Status: {}", status);
+
+			Bank.CheckAccountResponse.Builder response = Bank.CheckAccountResponse
+					.newBuilder()
+					.setStatus(status);
+
+			switch (status) {
+				case SUCCESS:
+					PublicKey key = null;
+					try {
+						key = Crypto.decodePublicKey(request.getPublicKey());
+					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+						// This should not happen
+						e.printStackTrace();
+					}
+
+					BankAccount account = bank.getAccount(key);
+					response.setBalance(account.getBalance().toString())
+							.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())));
+
+					for (Transaction t : account.getTransactionQueue().keySet().toArray(new Transaction[0])) {
+						Bank.Transaction transaction = Bank.Transaction.newBuilder()
+								.setAmount(t.getAmount().toString())
+								.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
+								.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+								.build();
+						response.addTransactions(transaction);
+					}
+					break;
+			}
+
+			responseObserver.onNext(response.build());
+			responseObserver.onCompleted();
+		}
+	}
+
+
 	private Bank.AuditResponse.Status auditStatus(Bank.AuditRequest request) {
 		try {
 			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
@@ -286,6 +342,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 					BankAccount account = bank.getAccount(key);
 
+					response.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())));
+
 					for (Transaction t : account.getTransactionHistory().keySet().toArray(new Transaction[0])) {
 						Bank.Transaction transaction = Bank.Transaction.newBuilder()
 								.setAmount(t.getAmount().toString())
@@ -302,45 +360,5 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		}
 	}
 
-	private Bank.NonceNegotiationResponse.Status nonceNegotiationStatus(Bank.NonceNegotiationRequest request) {
-		try {
-			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
-			if (!bank.accountExists(key))
-				return Bank.NonceNegotiationResponse.Status.INVALID_KEY;
-			return Bank.NonceNegotiationResponse.Status.SUCCESS;
-		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-			return Bank.NonceNegotiationResponse.Status.INVALID_KEY_FORMAT;
-		}
-	}
 
-	@Override
-	public void nonceNegotiation(Bank.NonceNegotiationRequest request, StreamObserver<Bank.NonceNegotiationResponse> responseObserver) {
-		synchronized (bank) {
-			Bank.NonceNegotiationResponse.Status status = nonceNegotiationStatus(request);
-			Bank.NonceNegotiationResponse.Builder response = Bank.NonceNegotiationResponse.newBuilder().setStatus(status);
-
-			logger.info("Got nonce negotiation request. Status: {}", status.name());
-
-			switch (status) {
-				case SUCCESS:
-					PublicKey key = null;
-					try {
-						key = Crypto.decodePublicKey(request.getPublicKey());
-					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-						// This should not happen
-						e.printStackTrace();
-					}
-
-					BankAccount account = bank.getAccount(key);
-
-					response.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())))
-							.setNonce(Bank.Nonce.newBuilder().setNonceBytes(ByteString.copyFrom(account.getNonce().getBytes())).build());
-
-					break;
-			}
-
-			responseObserver.onNext(response.build());
-			responseObserver.onCompleted();
-		}
-	}
 }

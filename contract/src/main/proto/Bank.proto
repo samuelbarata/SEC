@@ -1,9 +1,8 @@
-//
-// Protocol buffers definition for a Ping service
-//
 syntax = "proto3";
 package pt.ulisboa.tecnico.sec.candeeiros;
 
+
+// ***** Type definitions *****
 message PublicKey {
 	bytes keyBytes = 1;
 }
@@ -19,13 +18,31 @@ message Nonce {
 message Transaction {
 	PublicKey sourcePublicKey = 1;
 	PublicKey destinationPublicKey = 2;
-	// string to avoid floats which are unsafe for exact number representations
+	// floats should be avoided when handling money
 	string amount = 3;
 }
 
+
+// ***** Authenticated procedures *****
+message OpenAccountRequest {
+	bytes challenge = 1;
+	PublicKey publicKey = 2;
+}
+
+message OpenAccountResponse {
+	enum Status {
+		SUCCESS = 0;
+		ALREADY_EXISTED = 1;
+		KEY_FAILURE = 2;
+	}
+	bytes challenge = 1;
+	Status status = 2;
+}
+
+
 message NonceNegotiationRequest {
-	PublicKey publicKey = 1;
-	bytes challenge = 2;
+	bytes challenge = 1;
+	PublicKey publicKey = 2;
 	Nonce nonce = 3;
 }
 
@@ -35,22 +52,9 @@ message NonceNegotiationResponse {
 		INVALID_KEY = 1;
 		INVALID_KEY_FORMAT = 2;
 	}
-	Status status = 1;
-	bytes challenge = 2;
+	bytes challenge = 1;
+	Status status = 2;
 	Nonce nonce = 3;
-}
-
-message OpenAccountRequest {
-	PublicKey publicKey = 1;
-}
-
-message OpenAccountResponse {
-	enum Status {
-		SUCCESS = 0;
-		ALREADY_EXISTED = 1;
-		KEY_FAILURE = 2;
-	}
-	Status status = 1;
 }
 
 
@@ -73,20 +77,6 @@ message SendAmountResponse {
 	Status status = 2;
 }
 
-message CheckAccountRequest {
-	PublicKey publicKey = 1;
-}
-
-message CheckAccountResponse {
-	enum Status {
-		SUCCESS = 0;
-		INVALID_KEY = 1;
-		INVALID_KEY_FORMAT = 2;
-	}
-	Status status = 1;
-	string balance = 2;
-	repeated Transaction transactions = 3;
-}
 
 message ReceiveAmountRequest {
 	Nonce nonce = 1;
@@ -106,8 +96,29 @@ message ReceiveAmountResponse {
 	Status status = 2;
 }
 
+
+// ***** Unauthenticated procedures *****
+message CheckAccountRequest {
+	bytes challenge = 1;
+	PublicKey publicKey = 2;
+}
+
+message CheckAccountResponse {
+	enum Status {
+		SUCCESS = 0;
+		INVALID_KEY = 1;
+		INVALID_KEY_FORMAT = 2;
+	}
+	bytes challenge = 1;
+	Status status = 2;
+	string balance = 3;
+	repeated Transaction transactions = 4;
+}
+
+
 message AuditRequest {
-	PublicKey publicKey = 1;
+	bytes challenge = 1;
+	PublicKey publicKey = 2;
 }
 
 message AuditResponse {
@@ -116,18 +127,19 @@ message AuditResponse {
 		INVALID_KEY = 1;
 		INVALID_KEY_FORMAT = 2;
 	}
-	Status status = 1;
-	repeated Transaction transactions = 2;
+	bytes challenge = 1;
+	Status status = 2;
+	repeated Transaction transactions = 3;
 }
 
 
-// Defining a Service, a Service can have multiple RPC operations
+// ***** Bank Service
 service BankService {
-	// Define a RPC operation
 	rpc OpenAccount(OpenAccountRequest) returns (OpenAccountResponse);
-	rpc SendAmount(SendAmountRequest) returns (SendAmountResponse);
-	rpc CheckAccount(CheckAccountRequest) returns (CheckAccountResponse);
-	rpc ReceiveAmount(ReceiveAmountRequest) returns (ReceiveAmountResponse);
-	rpc Audit(AuditRequest) returns (AuditResponse);
 	rpc NonceNegotiation(NonceNegotiationRequest) returns (NonceNegotiationResponse);
+	rpc SendAmount(SendAmountRequest) returns (SendAmountResponse);
+	rpc ReceiveAmount(ReceiveAmountRequest) returns (ReceiveAmountResponse);
+
+	rpc CheckAccount(CheckAccountRequest) returns (CheckAccountResponse);
+	rpc Audit(AuditRequest) returns (AuditResponse);
 }
