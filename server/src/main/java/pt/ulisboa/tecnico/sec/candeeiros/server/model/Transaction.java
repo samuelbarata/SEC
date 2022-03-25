@@ -1,5 +1,7 @@
 package pt.ulisboa.tecnico.sec.candeeiros.server.model;
 
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
+
 import java.math.BigDecimal;
 import java.security.PublicKey;
 import java.util.Objects;
@@ -7,6 +9,9 @@ import java.util.Objects;
 public class Transaction {
     private final PublicKey source, destination;
     private final BigDecimal amount;
+
+    // intentionally ignored by equals and hash
+    private Nonce sourceNonce, destinationNonce;
 
     public Transaction(PublicKey source, PublicKey destination, BigDecimal amount) {
         this.source = source;
@@ -24,6 +29,22 @@ public class Transaction {
 
     public BigDecimal getAmount() {
         return amount;
+    }
+
+    public Nonce getSourceNonce() {
+        return sourceNonce;
+    }
+
+    public void setSourceNonce(Nonce sourceNonce) {
+        this.sourceNonce = sourceNonce;
+    }
+
+    public Nonce getDestinationNonce() {
+        return destinationNonce;
+    }
+
+    public void setDestinationNonce(Nonce destinationNonce) {
+        this.destinationNonce = destinationNonce;
     }
 
     @Override

@@ -52,12 +52,13 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			switch (status) {
 				case SUCCESS:
-					PublicKey publicKey = null;
+					PublicKey publicKey;
 					try {
 						publicKey = Crypto.decodePublicKey(request.getPublicKey());
 					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
 						// Should never happen
 						e.printStackTrace();
+						break;
 					}
 					response.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())));
 
@@ -156,14 +157,15 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			switch (status) {
 				case SUCCESS:
-					PublicKey sourceKey = null;
-					PublicKey destinationKey = null;
+					PublicKey sourceKey;
+					PublicKey destinationKey;
 					try {
 						sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 						destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 					} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
 						// Should never happen
 						e.printStackTrace();
+						break;
 					}
 					BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
 					Nonce nonce = Nonce.decode(request.getNonce());
@@ -194,7 +196,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 				return Bank.ReceiveAmountResponse.Status.INVALID_KEY;
 			BankAccount destinationAccount = bank.getAccount(destinationKey);
 			BigDecimal amount = new BigDecimal(request.getTransaction().getAmount());
-			if (!destinationAccount.getTransactionQueue().containsKey(new Transaction(sourceKey, destinationKey, amount)))
+			if (!destinationAccount.getTransactionQueue().contains(new Transaction(sourceKey, destinationKey, amount)))
 				return Bank.ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION;
 			if (!destinationAccount.getNonce().nextNonce().equals(Nonce.decode(request.getNonce())))
 				return Bank.ReceiveAmountResponse.Status.INVALID_NONCE;
@@ -218,14 +220,15 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			switch (status) {
 				case SUCCESS:
-					PublicKey sourceKey = null;
-					PublicKey destinationKey = null;
+					PublicKey sourceKey;
+					PublicKey destinationKey;
 					try {
 						sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 						destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 					} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
 						// Should never happen
 						e.printStackTrace();
+						break;
 					}
 					BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
 					Nonce nonce = Nonce.decode(request.getNonce());
@@ -293,7 +296,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					response.setBalance(account.getBalance().toString())
 							.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())));
 
-					for (Transaction t : account.getTransactionQueue().keySet().toArray(new Transaction[0])) {
+					for (Transaction t : account.getTransactionQueue()) {
 						Bank.Transaction transaction = Bank.Transaction.newBuilder()
 								.setAmount(t.getAmount().toString())
 								.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
@@ -344,7 +347,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 					response.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())));
 
-					for (Transaction t : account.getTransactionHistory().keySet().toArray(new Transaction[0])) {
+					for (Transaction t : account.getTransactionHistory()) {
 						Bank.Transaction transaction = Bank.Transaction.newBuilder()
 								.setAmount(t.getAmount().toString())
 								.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))

@@ -149,7 +149,8 @@ public class BftBank {
         Transaction transaction = new Transaction(source, destination, amount);
         BankAccount sourceAccount = getAccount(source);
         sourceAccount.setBalance(sourceAccount.getBalance().subtract(amount));
-        accounts.get(destination).getTransactionQueue().put(transaction, nonce);
+        transaction.setSourceNonce(nonce);
+        accounts.get(destination).getTransactionQueue().add(transaction);
         sourceAccount.setNonce(nonce);
     }
 
@@ -178,12 +179,16 @@ public class BftBank {
         BankAccount destinationAccount = getAccount(destination);
         BankAccount sourceAccount = getAccount(source);
 
-        destinationAccount.getTransactionQueue().remove(transaction);
+        // Needed to maintain source nonce
+        int i = destinationAccount.getTransactionQueue().indexOf(transaction);
+        transaction = destinationAccount.getTransactionQueue().remove(i);
+
+        transaction.setDestinationNonce(nonce);
 
         destinationAccount.setBalance(destinationAccount.getBalance().add(amount));
 
-        destinationAccount.getTransactionHistory().put(transaction, nonce);
-        sourceAccount.getTransactionHistory().put(transaction, nonce);
+        destinationAccount.getTransactionHistory().add(transaction);
+        sourceAccount.getTransactionHistory().add(transaction);
 
         destinationAccount.setNonce(nonce);
     }

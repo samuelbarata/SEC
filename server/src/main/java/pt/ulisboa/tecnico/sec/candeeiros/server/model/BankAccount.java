@@ -5,21 +5,19 @@ import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 import java.math.BigDecimal;
 import java.security.PublicKey;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class BankAccount {
     private final PublicKey publicKey;
     private BigDecimal balance;
-    // Intentionally using the less abstract type to indicate the map maintains order
-    private final LinkedHashMap<Transaction, Nonce> transactionHistory;
-    private final LinkedHashMap<Transaction, Nonce> transactionQueue;
+    private final List<Transaction> transactionHistory;
+    private final List<Transaction> transactionQueue;
     private Nonce nonce;
 
-    public LinkedHashMap<Transaction, Nonce> getTransactionQueue() {
+    public List<Transaction> getTransactionQueue() {
         return transactionQueue;
     }
 
-    public LinkedHashMap<Transaction, Nonce> getTransactionHistory() {
+    public List<Transaction> getTransactionHistory() {
         return transactionHistory;
     }
 
@@ -29,8 +27,8 @@ public class BankAccount {
         }
         this.publicKey = publicKey;
         this.balance = new BigDecimal(1000);
-        this.transactionHistory = new LinkedHashMap();
-        this.transactionQueue = new LinkedHashMap();
+        this.transactionHistory = new ArrayList<>();
+        this.transactionQueue = new ArrayList<>();
         this.nonce = nonce;
     }
 
