@@ -26,6 +26,7 @@ message Transaction {
 message NonceNegotiationRequest {
 	PublicKey publicKey = 1;
 	bytes challenge = 2;
+	Nonce nonce = 3;
 }
 
 message NonceNegotiationResponse {
@@ -54,7 +55,8 @@ message OpenAccountResponse {
 
 
 message SendAmountRequest {
-	Transaction transaction = 1;
+	Nonce nonce = 1;
+	Transaction transaction = 2;
 }
 
 message SendAmountResponse {
@@ -66,11 +68,13 @@ message SendAmountResponse {
 		INVALID_KEY_FORMAT = 4;
 		INVALID_NUMBER_FORMAT = 5;
 	}
-	Status status = 1;
+	Nonce nonce = 1;
+	Status status = 2;
 }
 
 message CheckAccountRequest {
-	PublicKey publicKey = 1;
+	Nonce nonce = 1;
+	PublicKey publicKey = 2;
 }
 
 message CheckAccountResponse {
@@ -79,15 +83,17 @@ message CheckAccountResponse {
 		INVALID_KEY = 1;
 		INVALID_KEY_FORMAT = 2;
 	}
-	Status status = 1;
-	string balance = 2;
-	repeated Transaction transactions = 3;
+	Nonce nonce = 1;
+	Status status = 2;
+	string balance = 3;
+	repeated Transaction transactions = 4;
 }
 
 message ReceiveAmountRequest {
 	// redundant as it is the transaction destination but included for consistency
-	Transaction transaction = 1;
-	bool accept = 2;
+	Nonce nonce = 1;
+	Transaction transaction = 2;
+	bool accept = 3;
 }
 
 message ReceiveAmountResponse {
@@ -97,7 +103,8 @@ message ReceiveAmountResponse {
 		INVALID_KEY = 2;
 		INVALID_KEY_FORMAT = 3;
 	}
-	Status status = 1;
+	Nonce nonce = 1;
+	Status status = 2;
 }
 
 message AuditRequest {

@@ -1,15 +1,16 @@
 package pt.ulisboa.tecnico.sec.candeeiros.shared;
 
 import java.security.SecureRandom;
+import java.util.Base64;
 
 public class Nonce {
-    private final byte[] bytes = new byte[16];
+    private final byte[] bytes;
 
     private Nonce(byte[] bytes) {
         if (bytes.length != 16) {
             throw new NumberFormatException();
         }
-        bytes = bytes;
+        this.bytes = bytes;
     }
 
     public Nonce nextNonce() {
@@ -36,5 +37,14 @@ public class Nonce {
 
     public byte[] getBytes() {
         return bytes;
+    }
+
+    public static Nonce fromString(String nonce) {
+        return new Nonce(Base64.getDecoder().decode(nonce));
+    }
+
+    @Override
+    public String toString() {
+        return new String(Base64.getEncoder().encode(bytes));
     }
 }

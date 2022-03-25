@@ -4,7 +4,6 @@ import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
 import java.math.BigDecimal;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,7 +32,6 @@ public class BankAccount {
         this.balance = new BigDecimal(1000);
         this.transactionHistory = Collections.synchronizedList(new ArrayList<>());
         this.transactionQueue = Collections.synchronizedList(new ArrayList<>());
-        SecureRandom sr = new SecureRandom();
         this.nonce = Nonce.newNonce();
     }
 

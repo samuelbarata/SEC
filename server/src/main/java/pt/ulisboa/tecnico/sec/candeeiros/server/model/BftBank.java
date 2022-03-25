@@ -117,15 +117,19 @@ public class BftBank {
         return accounts.containsKey(key);
     }
 
-    private synchronized void createAccountNoLog(PublicKey key) {
-        accounts.put(key, new BankAccount(key));
+    private synchronized BankAccount createAccountNoLog(PublicKey key) {
+        BankAccount account = new BankAccount(key);
+        accounts.put(key, account);
+        return account;
     }
 
     public synchronized void createAccount(PublicKey key) {
-        createAccountNoLog(key);
+        BankAccount account = createAccountNoLog(key);
         try {
             ledgerWriter.append("create-");
             ledgerWriter.append(Crypto.keyAsString(key));
+            ledgerWriter.append("-");
+            ledgerWriter.append(account.getNonce().toString());
             ledgerWriter.append('\n');
             ledgerWriter.flush();
         } catch (IOException e) {
