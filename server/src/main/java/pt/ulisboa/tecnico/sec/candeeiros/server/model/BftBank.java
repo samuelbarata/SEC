@@ -2,7 +2,6 @@ package pt.ulisboa.tecnico.sec.candeeiros.server.model;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
 import java.io.*;
