@@ -1,6 +1,10 @@
 package pt.ulisboa.tecnico.sec.candeeiros.shared;
 
+import com.google.protobuf.ByteString;
+import pt.ulisboa.tecnico.sec.candeeiros.Bank;
+
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 
 public class Nonce {
@@ -35,16 +39,37 @@ public class Nonce {
         return new Nonce(bytes);
     }
 
-    public byte[] getBytes() {
-        return bytes;
-    }
-
     public static Nonce fromString(String nonce) {
         return new Nonce(Base64.getDecoder().decode(nonce));
+    }
+
+    public static Nonce decode(Bank.Nonce nonce) {
+        return new Nonce(nonce.getNonceBytes().toByteArray());
+    }
+
+    public Bank.Nonce encode() {
+        return Bank.Nonce.newBuilder().setNonceBytes(ByteString.copyFrom(bytes)).build();
+    }
+
+    public byte[] getBytes() {
+        return bytes;
     }
 
     @Override
     public String toString() {
         return new String(Base64.getEncoder().encode(bytes));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Nonce nonce = (Nonce) o;
+        return Arrays.equals(bytes, nonce.bytes);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(bytes);
     }
 }

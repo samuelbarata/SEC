@@ -4,39 +4,46 @@ import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
 import java.math.BigDecimal;
 import java.security.PublicKey;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BankAccount {
     private final PublicKey publicKey;
     private BigDecimal balance;
-    private final List<Transaction> transactionHistory;
-    private final List<Transaction> transactionQueue;
+    // Intentionally using the less abstract type to indicate the map maintains order
+    private final LinkedHashMap<Transaction, Nonce> transactionHistory;
+    private final LinkedHashMap<Transaction, Nonce> transactionQueue;
     private Nonce nonce;
 
-    public List<Transaction> getTransactionQueue() {
+    public LinkedHashMap<Transaction, Nonce> getTransactionQueue() {
         return transactionQueue;
     }
 
-    public List<Transaction> getTransactionHistory() {
+    public LinkedHashMap<Transaction, Nonce> getTransactionHistory() {
         return transactionHistory;
     }
 
-    public BankAccount(PublicKey publicKey) {
+    public BankAccount(PublicKey publicKey, Nonce nonce) {
         if (publicKey == null) {
             throw new NullPointerException();
         }
         this.publicKey = publicKey;
         this.balance = new BigDecimal(1000);
-        this.transactionHistory = Collections.synchronizedList(new ArrayList<>());
-        this.transactionQueue = Collections.synchronizedList(new ArrayList<>());
-        this.nonce = Nonce.newNonce();
+        this.transactionHistory = new LinkedHashMap();
+        this.transactionQueue = new LinkedHashMap();
+        this.nonce = nonce;
+    }
+
+    public BankAccount(PublicKey publicKey) {
+        this(publicKey, Nonce.newNonce());
     }
 
     public Nonce getNonce() {
         return nonce;
+    }
+
+    public void setNonce(Nonce nonce) {
+        this.nonce = nonce;
     }
 
     public PublicKey getPublicKey() {

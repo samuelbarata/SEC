@@ -24,7 +24,7 @@ public class PersistenceTest {
     }
 
     @Test
-    void verifyPersistencyTest() throws NoSuchAlgorithmException, InvalidKeySpecException {
+    void verifyPersistenceTest() throws NoSuchAlgorithmException, InvalidKeySpecException {
         Bank.CheckAccountResponse checkAccountResponse;
         Bank.AuditResponse auditResponse;
 

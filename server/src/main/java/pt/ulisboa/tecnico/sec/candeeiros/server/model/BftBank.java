@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pt.ulisboa.tecnico.sec.candeeiros.server.BankServiceImpl;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -12,7 +13,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 import java.util.Map;
 
-// TODO fine tune synchronization
 public class BftBank {
     private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
     private final Map<PublicKey, BankAccount> accounts;
@@ -59,12 +59,12 @@ public class BftBank {
         String[] args = line.split("-");
         switch (args[0]) {
             case "create":
-                if (args.length != 2) {
+                if (args.length != 3) {
                     logger.error("Invalid line in ledger: {}", line);
                     System.exit(1);
                 }
                 try {
-                    createAccountNoLog(Crypto.keyFromString(args[1]));
+                    createAccountWithNonce(Crypto.keyFromString(args[1]), Nonce.fromString(args[2]));
                 } catch (InvalidKeySpecException e) {
                     logger.error("Invalid line in ledger: {}", line);
                     e.printStackTrace();
@@ -72,12 +72,12 @@ public class BftBank {
                 }
                 break;
             case "add":
-                if (args.length != 4) {
+                if (args.length != 5) {
                     logger.error("Invalid line in ledger: {}", line);
                     System.exit(1);
                 }
                 try {
-                    addTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]));
+                    addTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]), Nonce.fromString(args[4]));
                 } catch (InvalidKeySpecException e) {
                     logger.error("Invalid line in ledger: {}", line);
                     e.printStackTrace();
@@ -85,12 +85,12 @@ public class BftBank {
                 }
                 break;
             case "accept":
-                if (args.length != 4) {
+                if (args.length != 5) {
                     logger.error("Invalid line in ledger: {}", line);
                     System.exit(1);
                 }
                 try {
-                    acceptTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]));
+                    acceptTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]), Nonce.fromString(args[4]));
                 } catch (InvalidKeySpecException e) {
                     logger.error("Invalid line in ledger: {}", line);
                     e.printStackTrace();
@@ -98,12 +98,12 @@ public class BftBank {
                 }
                 break;
             case "reject":
-                if (args.length != 4) {
+                if (args.length != 5) {
                     logger.error("Invalid line in ledger: {}", line);
                     System.exit(1);
                 }
                 try {
-                    rejectTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]));
+                    rejectTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]), Nonce.fromString(args[4]));
                 } catch (InvalidKeySpecException e) {
                     logger.error("Invalid line in ledger: {}", line);
                     e.printStackTrace();
@@ -115,6 +115,12 @@ public class BftBank {
 
     public synchronized boolean accountExists(PublicKey key) {
         return accounts.containsKey(key);
+    }
+
+    private synchronized BankAccount createAccountWithNonce(PublicKey key, Nonce nonce) {
+        BankAccount account = new BankAccount(key, nonce);
+        accounts.put(key, account);
+        return account;
     }
 
     private synchronized BankAccount createAccountNoLog(PublicKey key) {
@@ -139,15 +145,16 @@ public class BftBank {
         }
     }
 
-    private synchronized void addTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount) {
+    private synchronized void addTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
         Transaction transaction = new Transaction(source, destination, amount);
         BankAccount sourceAccount = getAccount(source);
         sourceAccount.setBalance(sourceAccount.getBalance().subtract(amount));
-        accounts.get(destination).getTransactionQueue().add(transaction);
+        accounts.get(destination).getTransactionQueue().put(transaction, nonce);
+        sourceAccount.setNonce(nonce);
     }
 
-    public synchronized void addTransaction(PublicKey source, PublicKey destination, BigDecimal amount) {
-        addTransactionNoLog(source, destination, amount);
+    public synchronized void addTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
+        addTransactionNoLog(source, destination, amount, nonce);
         try {
             ledgerWriter.append("add-");
             ledgerWriter.append(Crypto.keyAsString(source));
@@ -155,6 +162,8 @@ public class BftBank {
             ledgerWriter.append(Crypto.keyAsString(destination));
             ledgerWriter.append('-');
             ledgerWriter.append(amount.toString());
+            ledgerWriter.append('-');
+            ledgerWriter.append(nonce.toString());
             ledgerWriter.append('\n');
             ledgerWriter.flush();
         } catch (IOException e) {
@@ -164,7 +173,7 @@ public class BftBank {
         }
     }
 
-    private synchronized void acceptTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount) {
+    private synchronized void acceptTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
         Transaction transaction = new Transaction(source, destination, amount);
         BankAccount destinationAccount = getAccount(destination);
         BankAccount sourceAccount = getAccount(source);
@@ -173,12 +182,14 @@ public class BftBank {
 
         destinationAccount.setBalance(destinationAccount.getBalance().add(amount));
 
-        destinationAccount.getTransactionHistory().add(transaction);
-        sourceAccount.getTransactionHistory().add(transaction);
+        destinationAccount.getTransactionHistory().put(transaction, nonce);
+        sourceAccount.getTransactionHistory().put(transaction, nonce);
+
+        destinationAccount.setNonce(nonce);
     }
 
-    public synchronized void acceptTransaction(PublicKey source, PublicKey destination, BigDecimal amount) {
-        acceptTransactionNoLog(source, destination, amount);
+    public synchronized void acceptTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
+        acceptTransactionNoLog(source, destination, amount, nonce);
         try {
             ledgerWriter.append("accept-");
             ledgerWriter.append(Crypto.keyAsString(source));
@@ -186,6 +197,8 @@ public class BftBank {
             ledgerWriter.append(Crypto.keyAsString(destination));
             ledgerWriter.append('-');
             ledgerWriter.append(amount.toString());
+            ledgerWriter.append('-');
+            ledgerWriter.append(nonce.toString());
             ledgerWriter.append('\n');
             ledgerWriter.flush();
         } catch (IOException e) {
@@ -195,17 +208,19 @@ public class BftBank {
         }
     }
 
-    private synchronized void rejectTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount) {
+    private synchronized void rejectTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
         Transaction transaction = new Transaction(source, destination, amount);
         BankAccount destinationAccount = getAccount(destination);
         BankAccount sourceAccount = getAccount(source);
 
         destinationAccount.getTransactionQueue().remove(transaction);
         sourceAccount.setBalance(sourceAccount.getBalance().add(amount));
+
+        destinationAccount.setNonce(nonce);
     }
 
-    public synchronized void rejectTransaction(PublicKey source, PublicKey destination, BigDecimal amount) {
-        rejectTransactionNoLog(source, destination, amount);
+    public synchronized void rejectTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
+        rejectTransactionNoLog(source, destination, amount, nonce);
         try {
             ledgerWriter.append("reject-");
             ledgerWriter.append(Crypto.keyAsString(source));
@@ -213,6 +228,8 @@ public class BftBank {
             ledgerWriter.append(Crypto.keyAsString(destination));
             ledgerWriter.append('-');
             ledgerWriter.append(amount.toString());
+            ledgerWriter.append('-');
+            ledgerWriter.append(nonce.toString());
             ledgerWriter.append('\n');
             ledgerWriter.flush();
         } catch (IOException e) {

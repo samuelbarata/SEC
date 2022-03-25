@@ -11,6 +11,7 @@ import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
 import io.grpc.stub.StreamObserver;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.BftBank;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -81,8 +82,11 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			BigDecimal amount = new BigDecimal(request.getTransaction().getAmount());
 			if (amount.compareTo(BigDecimal.ZERO) <= 0)
 				return Bank.SendAmountResponse.Status.INVALID_NUMBER_FORMAT;
-			if (bank.getAccount(sourceKey).getBalance().compareTo(amount) < 0)
+			BankAccount sourceAccount = bank.getAccount(sourceKey);
+			if (sourceAccount.getBalance().compareTo(amount) < 0)
 				return Bank.SendAmountResponse.Status.NOT_ENOUGH_BALANCE;
+			if (!sourceAccount.getNonce().nextNonce().equals(Nonce.decode(request.getNonce())))
+				return Bank.SendAmountResponse.Status.INVALID_NONCE;
 			return Bank.SendAmountResponse.Status.SUCCESS;
 		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
 			return Bank.SendAmountResponse.Status.INVALID_KEY_FORMAT;
@@ -98,6 +102,9 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			logger.info("Got request to create transaction. Status: {}", status);
 
+			Bank.SendAmountResponse.Builder response = Bank.SendAmountResponse.newBuilder()
+					.setStatus(status);
+
 			switch (status) {
 				case SUCCESS:
 					PublicKey sourceKey = null;
@@ -110,8 +117,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 						e.printStackTrace();
 					}
 					BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
+					Nonce nonce = Nonce.decode(request.getNonce());
 
-					bank.addTransaction(sourceKey, destinationKey, amount);
+					bank.addTransaction(sourceKey, destinationKey, amount, nonce);
+					response.setNonce(nonce.encode());
 
 					logger.info("Created transaction: {} -> {} (amount: {})",
 							Crypto.keyAsShortString(sourceKey),
@@ -120,11 +129,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					break;
 			}
 
-
-			Bank.SendAmountResponse response = Bank.SendAmountResponse.newBuilder()
-					.setStatus(status)
-					.build();
-			responseObserver.onNext(response);
+			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
 		}
 	}
@@ -163,7 +168,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					BankAccount account = bank.getAccount(key);
 					response.setBalance(account.getBalance().toString());
 
-					for (Transaction t : account.getTransactionQueue()) {
+					for (Transaction t : account.getTransactionQueue().keySet().toArray(new Transaction[0])) {
 						Bank.Transaction transaction = Bank.Transaction.newBuilder()
 								.setAmount(t.getAmount().toString())
 								.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
@@ -186,9 +191,12 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			if (!bank.accountExists(destinationKey))
 				return Bank.ReceiveAmountResponse.Status.INVALID_KEY;
+			BankAccount destinationAccount = bank.getAccount(destinationKey);
 			BigDecimal amount = new BigDecimal(request.getTransaction().getAmount());
-			if (!bank.getAccount(destinationKey).getTransactionQueue().contains(new Transaction(sourceKey, destinationKey, amount)))
+			if (!destinationAccount.getTransactionQueue().containsKey(new Transaction(sourceKey, destinationKey, amount)))
 				return Bank.ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION;
+			if (!destinationAccount.getNonce().nextNonce().equals(Nonce.decode(request.getNonce())))
+				return Bank.ReceiveAmountResponse.Status.INVALID_NONCE;
 			return Bank.ReceiveAmountResponse.Status.SUCCESS;
 		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
 			return Bank.ReceiveAmountResponse.Status.INVALID_KEY_FORMAT;
@@ -204,6 +212,9 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			logger.info("Got request to accept transaction. Status: {}", status);
 
+			Bank.ReceiveAmountResponse.Builder response = Bank.ReceiveAmountResponse.newBuilder()
+					.setStatus(status);
+
 			switch (status) {
 				case SUCCESS:
 					PublicKey sourceKey = null;
@@ -216,16 +227,19 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 						e.printStackTrace();
 					}
 					BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
+					Nonce nonce = Nonce.decode(request.getNonce());
+
+					response.setNonce(nonce.encode());
 
 					if (request.getAccept()) {
-						bank.acceptTransaction(sourceKey, destinationKey, amount);
+						bank.acceptTransaction(sourceKey, destinationKey, amount, nonce);
 
 						logger.info("Applied transaction: {} -> {} (amount: {})",
 								Crypto.keyAsShortString(sourceKey),
 								Crypto.keyAsShortString(destinationKey),
 								amount);
 					} else {
-						bank.rejectTransaction(sourceKey, destinationKey, amount);
+						bank.rejectTransaction(sourceKey, destinationKey, amount, nonce);
 
 						logger.info("Rejected transaction: {} -> {} (amount: {})",
 								Crypto.keyAsShortString(sourceKey),
@@ -235,10 +249,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					break;
 			}
 
-			Bank.ReceiveAmountResponse response = Bank.ReceiveAmountResponse.newBuilder()
-					.setStatus(status)
-					.build();
-			responseObserver.onNext(response);
+			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
 		}
 	}
@@ -275,7 +286,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 					BankAccount account = bank.getAccount(key);
 
-					for (Transaction t : account.getTransactionHistory()) {
+					for (Transaction t : account.getTransactionHistory().keySet().toArray(new Transaction[0])) {
 						Bank.Transaction transaction = Bank.Transaction.newBuilder()
 								.setAmount(t.getAmount().toString())
 								.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))

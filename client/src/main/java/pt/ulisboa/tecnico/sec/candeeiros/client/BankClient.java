@@ -6,7 +6,9 @@ import io.grpc.ManagedChannelBuilder;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedChallengeException;
+import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.WrongNonceException;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -33,7 +35,7 @@ public class BankClient {
         return stub.openAccount(request);
     }
 
-    public Bank.SendAmountResponse sendAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount) {
+    public Bank.SendAmountResponse sendAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount, Nonce nonce) throws WrongNonceException {
         Bank.Transaction transaction = Bank.Transaction
                 .newBuilder()
                 .setSourcePublicKey(Crypto.encodePublicKey(sourcePublicKey))
@@ -41,15 +43,23 @@ public class BankClient {
                 .setAmount(amount)
                 .build();
 
+
         Bank.SendAmountRequest request = Bank.SendAmountRequest
                 .newBuilder()
                 .setTransaction(transaction)
+                .setNonce(nonce.nextNonce().encode())
                 .build();
 
-        return stub.sendAmount(request);
+        Bank.SendAmountResponse response = stub.sendAmount(request);
+
+        if (response.getStatus() == Bank.SendAmountResponse.Status.SUCCESS)
+            if (!isNextNonce(nonce, Nonce.decode(response.getNonce())))
+                throw new WrongNonceException();
+
+        return response;
     }
 
-    public Bank.ReceiveAmountResponse receiveAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount, boolean accept) {
+    public Bank.ReceiveAmountResponse receiveAmount(PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount, boolean accept, Nonce nonce) throws WrongNonceException {
         Bank.Transaction transaction = Bank.Transaction
                 .newBuilder()
                 .setSourcePublicKey(Crypto.encodePublicKey(sourcePublicKey))
@@ -61,9 +71,16 @@ public class BankClient {
                 .newBuilder()
                 .setTransaction(transaction)
                 .setAccept(accept)
+                .setNonce(nonce.nextNonce().encode())
                 .build();
 
-        return stub.receiveAmount(request);
+        Bank.ReceiveAmountResponse response = stub.receiveAmount(request);
+
+        if (response.getStatus() == Bank.ReceiveAmountResponse.Status.SUCCESS)
+            if (!isNextNonce(nonce, Nonce.decode(response.getNonce())))
+                throw new WrongNonceException();
+
+        return response;
     }
 
     public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) {
@@ -94,13 +111,17 @@ public class BankClient {
 
         Bank.NonceNegotiationResponse response = stub.nonceNegotiation(request);
 
-        if (!Arrays.equals(
-                Crypto.challenge(challenge),
-                response.getChallenge().toByteArray()
-        )) {
+        if (!isChallengeCorrect(challenge, response.getChallenge().toByteArray()))
             throw new FailedChallengeException();
-        }
 
         return response;
+    }
+
+    private boolean isChallengeCorrect(byte[] challenge, byte[] response) {
+        return Arrays.equals(Crypto.challenge(challenge), response);
+    }
+
+    private boolean isNextNonce(Nonce sent, Nonce received) {
+        return sent.nextNonce().equals(received);
     }
 }
