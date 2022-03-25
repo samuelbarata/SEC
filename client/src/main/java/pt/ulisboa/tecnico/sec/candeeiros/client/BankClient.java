@@ -30,17 +30,17 @@ public class BankClient {
 
     // ***** Authenticated procedures *****
     public Bank.OpenAccountResponse openAccount(PublicKey publicKey) throws FailedChallengeException {
-        byte[] challenge = generateChallenge();
+        Nonce challengeNonce = Nonce.newNonce();
 
         Bank.OpenAccountRequest request = Bank.OpenAccountRequest.newBuilder()
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
-                .setChallenge(ByteString.copyFrom(challenge))
+                .setChallengeNonce(challengeNonce.encode())
                 .build();
 
         Bank.OpenAccountResponse response = stub.openAccount(request);
 
         if (response.getStatus() == Bank.OpenAccountResponse.Status.SUCCESS)
-            if (!isChallengeCorrect(challenge, response.getChallenge().toByteArray()))
+            if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
                 throw new FailedChallengeException();
 
         return response;
@@ -48,17 +48,17 @@ public class BankClient {
 
 
     public Bank.NonceNegotiationResponse nonceNegotiation(PublicKey publicKey) throws FailedChallengeException {
-        byte[] challenge = generateChallenge();
+        Nonce challengeNonce = Nonce.newNonce();
 
         Bank.NonceNegotiationRequest request = Bank.NonceNegotiationRequest.newBuilder()
-                .setChallenge(ByteString.copyFrom(challenge))
+                .setChallengeNonce(challengeNonce.encode())
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
                 .build();
 
         Bank.NonceNegotiationResponse response = stub.nonceNegotiation(request);
 
         if (response.getStatus() == Bank.NonceNegotiationResponse.Status.SUCCESS)
-            if (!isChallengeCorrect(challenge, response.getChallenge().toByteArray()))
+            if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
                 throw new FailedChallengeException();
 
         return response;
@@ -116,51 +116,39 @@ public class BankClient {
 
     // ***** Unauthenticated procedures *****
     public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException {
-        byte[] challenge = generateChallenge();
+        Nonce challengeNonce = Nonce.newNonce();
 
         Bank.CheckAccountRequest request = Bank.CheckAccountRequest.newBuilder()
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
-                .setChallenge(ByteString.copyFrom(challenge))
+                .setChallengeNonce(challengeNonce.encode())
                 .build();
 
         Bank.CheckAccountResponse response = stub.checkAccount(request);
 
         if (response.getStatus() == Bank.CheckAccountResponse.Status.SUCCESS)
-            if (!isChallengeCorrect(challenge, response.getChallenge().toByteArray()))
+            if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
                 throw new FailedChallengeException();
 
         return response;
     }
 
     public Bank.AuditResponse audit(PublicKey publicKey) throws FailedChallengeException {
-        byte[] challenge = generateChallenge();
+        Nonce challengeNonce = Nonce.newNonce();
 
         Bank.AuditRequest request = Bank.AuditRequest.newBuilder()
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
-                .setChallenge(ByteString.copyFrom(challenge))
+                .setChallengeNonce(challengeNonce.encode())
                 .build();
 
         Bank.AuditResponse response = stub.audit(request);
 
         if (response.getStatus() == Bank.AuditResponse.Status.SUCCESS)
-            if (!isChallengeCorrect(challenge, response.getChallenge().toByteArray()))
+            if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
                 throw new FailedChallengeException();
 
         return response;
     }
 
-
-
-    private byte[] generateChallenge() {
-        SecureRandom sr = new SecureRandom();
-        byte[] challenge = new byte[64];
-        sr.nextBytes(challenge);
-        return challenge;
-    }
-
-    private boolean isChallengeCorrect(byte[] challenge, byte[] response) {
-        return Arrays.equals(Crypto.challenge(challenge), response);
-    }
 
     private boolean isNextNonce(Nonce sent, Nonce received) {
         return sent.nextNonce().equals(received);

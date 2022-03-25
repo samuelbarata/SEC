@@ -32,7 +32,7 @@ message NonRepudiableTransaction {
 
 // ***** Authenticated procedures *****
 message OpenAccountRequest {
-	bytes challenge = 1;
+	Nonce challengeNonce = 1;
 	PublicKey publicKey = 2;
 }
 
@@ -42,13 +42,13 @@ message OpenAccountResponse {
 		ALREADY_EXISTED = 1;
 		KEY_FAILURE = 2;
 	}
-	bytes challenge = 1;
+	Nonce challengeNonce = 1;
 	Status status = 2;
 }
 
 
 message NonceNegotiationRequest {
-	bytes challenge = 1;
+	Nonce challengeNonce = 1;
 	PublicKey publicKey = 2;
 	Nonce nonce = 3;
 }
@@ -59,7 +59,7 @@ message NonceNegotiationResponse {
 		INVALID_KEY = 1;
 		INVALID_KEY_FORMAT = 2;
 	}
-	bytes challenge = 1;
+	Nonce challengeNonce = 1;
 	Status status = 2;
 	Nonce nonce = 3;
 }
@@ -106,7 +106,7 @@ message ReceiveAmountResponse {
 
 // ***** Unauthenticated procedures *****
 message CheckAccountRequest {
-	bytes challenge = 1;
+	Nonce challengeNonce = 1;
 	PublicKey publicKey = 2;
 }
 
@@ -116,7 +116,7 @@ message CheckAccountResponse {
 		INVALID_KEY = 1;
 		INVALID_KEY_FORMAT = 2;
 	}
-	bytes challenge = 1;
+	Nonce challengeNonce = 1;
 	Status status = 2;
 	string balance = 3;
 	repeated Transaction transactions = 4;
@@ -124,7 +124,7 @@ message CheckAccountResponse {
 
 
 message AuditRequest {
-	bytes challenge = 1;
+	Nonce challengeNonce = 1;
 	PublicKey publicKey = 2;
 }
 
@@ -134,7 +134,7 @@ message AuditResponse {
 		INVALID_KEY = 1;
 		INVALID_KEY_FORMAT = 2;
 	}
-	bytes challenge = 1;
+	Nonce challengeNonce = 1;
 	Status status = 2;
 	repeated Transaction transactions = 3;
 }

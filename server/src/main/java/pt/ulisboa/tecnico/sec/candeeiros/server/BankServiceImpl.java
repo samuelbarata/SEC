@@ -60,7 +60,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 						e.printStackTrace();
 						break;
 					}
-					response.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())));
+					response.setChallengeNonce(request.getChallengeNonce());
 
 					bank.createAccount(publicKey);
 					logger.info("Opened account with public key {}.", Crypto.keyAsShortString(publicKey));
@@ -105,7 +105,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 					BankAccount account = bank.getAccount(key);
 
-					response.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())))
+					response.setChallengeNonce(request.getChallengeNonce())
 							.setNonce(Bank.Nonce.newBuilder().setNonceBytes(ByteString.copyFrom(account.getNonce().getBytes())).build());
 
 					break;
@@ -294,7 +294,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 					BankAccount account = bank.getAccount(key);
 					response.setBalance(account.getBalance().toString())
-							.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())));
+							.setChallengeNonce(request.getChallengeNonce());
 
 					for (Transaction t : account.getTransactionQueue()) {
 						Bank.Transaction transaction = Bank.Transaction.newBuilder()
@@ -345,7 +345,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 					BankAccount account = bank.getAccount(key);
 
-					response.setChallenge(ByteString.copyFrom(Crypto.challenge(request.getChallenge().toByteArray())));
+					response.setChallengeNonce(request.getChallengeNonce());
 
 					for (Transaction t : account.getTransactionHistory()) {
 						Bank.Transaction transaction = Bank.Transaction.newBuilder()
