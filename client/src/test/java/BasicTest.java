@@ -11,7 +11,6 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
 
 class BasicTest {
     private static BankClient client;
