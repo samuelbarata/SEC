@@ -297,10 +297,16 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 							.setChallengeNonce(request.getChallengeNonce());
 
 					for (Transaction t : account.getTransactionQueue()) {
-						Bank.Transaction transaction = Bank.Transaction.newBuilder()
-								.setAmount(t.getAmount().toString())
-								.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
-								.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+
+						Bank.NonRepudiableTransaction transaction = Bank.NonRepudiableTransaction.newBuilder()
+								.setTransaction(
+									Bank.Transaction.newBuilder()
+									.setAmount(t.getAmount().toString())
+									.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
+									.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+									.build()
+								)
+								.setSourceNonce(t.getSourceNonce().encode())
 								.build();
 						response.addTransactions(transaction);
 					}
@@ -348,10 +354,16 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					response.setChallengeNonce(request.getChallengeNonce());
 
 					for (Transaction t : account.getTransactionHistory()) {
-						Bank.Transaction transaction = Bank.Transaction.newBuilder()
-								.setAmount(t.getAmount().toString())
-								.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
-								.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+						Bank.NonRepudiableTransaction transaction = Bank.NonRepudiableTransaction.newBuilder()
+								.setTransaction(
+										Bank.Transaction.newBuilder()
+										.setAmount(t.getAmount().toString())
+										.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
+										.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+										.build()
+								)
+								.setSourceNonce(t.getSourceNonce().encode())
+								.setDestinationNonce(t.getDestinationNonce().encode())
 								.build();
 						response.addTransactions(transaction);
 					}

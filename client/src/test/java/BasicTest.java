@@ -72,9 +72,9 @@ class BasicTest {
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("1000", checkAccountResponse.getBalance());
         assertEquals(1, checkAccountResponse.getTransactionsCount());
-        assertEquals(publicKey1, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getSourcePublicKey()));
-        assertEquals(publicKey2, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getDestinationPublicKey()));
-        assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getAmount());
+        assertEquals(publicKey1, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
+        assertEquals(publicKey2, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
+        assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getTransaction().getAmount());
 
         // Accept Transaction
         receiveAmountResponse = client.receiveAmount(publicKey1, publicKey2, "100", true, nonce2);
@@ -112,16 +112,16 @@ class BasicTest {
         auditResponse = client.audit(publicKey1);
         assertEquals(AuditResponse.Status.SUCCESS, auditResponse.getStatus());
         assertEquals(1, auditResponse.getTransactionsCount());
-        assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getSourcePublicKey()));
-        assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getDestinationPublicKey()));
-        assertEquals("100", auditResponse.getTransactionsList().get(0).getAmount());
+        assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
+        assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
+        assertEquals("100", auditResponse.getTransactionsList().get(0).getTransaction().getAmount());
 
         auditResponse = client.audit(publicKey2);
         assertEquals(AuditResponse.Status.SUCCESS, auditResponse.getStatus());
         assertEquals(1, auditResponse.getTransactionsCount());
-        assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getSourcePublicKey()));
-        assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getDestinationPublicKey()));
-        assertEquals("100", auditResponse.getTransactionsList().get(0).getAmount());
+        assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
+        assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
+        assertEquals("100", auditResponse.getTransactionsList().get(0).getTransaction().getAmount());
     }
 
     @Test

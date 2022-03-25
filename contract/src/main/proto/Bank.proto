@@ -119,7 +119,7 @@ message CheckAccountResponse {
 	Nonce challengeNonce = 1;
 	Status status = 2;
 	string balance = 3;
-	repeated Transaction transactions = 4;
+	repeated NonRepudiableTransaction transactions = 4;
 }
 
 
@@ -136,7 +136,7 @@ message AuditResponse {
 	}
 	Nonce challengeNonce = 1;
 	Status status = 2;
-	repeated Transaction transactions = 3;
+	repeated NonRepudiableTransaction transactions = 3;
 }
 
 
