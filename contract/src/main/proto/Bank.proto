@@ -26,7 +26,8 @@ message NonRepudiableTransaction {
 	Transaction transaction = 1;
 	Nonce sourceNonce = 2;
 	Nonce destinationNonce = 3;
-	// TODO signatures
+	Signature sourceSignature = 4;
+	Signature destinationSignature = 5;
 }
 
 
@@ -51,7 +52,6 @@ message OpenAccountResponse {
 message NonceNegotiationRequest {
 	Nonce challengeNonce = 1;
 	PublicKey publicKey = 2;
-	Nonce nonce = 3;
 }
 
 message NonceNegotiationResponse {
@@ -82,6 +82,7 @@ message SendAmountResponse {
 		INVALID_KEY_FORMAT = 4;
 		INVALID_NUMBER_FORMAT = 5;
 		INVALID_NONCE = 6;
+		INVALID_SIGNATURE = 7;
 	}
 	Nonce nonce = 1;
 	Status status = 2;
@@ -103,6 +104,7 @@ message ReceiveAmountResponse {
 		INVALID_KEY = 2;
 		INVALID_KEY_FORMAT = 3;
 		INVALID_NONCE = 4;
+		INVALID_SIGNATURE = 5;
 	}
 	Nonce nonce = 1;
 	Status status = 2;

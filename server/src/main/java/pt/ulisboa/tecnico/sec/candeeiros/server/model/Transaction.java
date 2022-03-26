@@ -12,6 +12,7 @@ public class Transaction {
 
     // intentionally ignored by equals and hash
     private Nonce sourceNonce, destinationNonce;
+    private byte[] sourceSignature, destinationSignature;
 
     public Transaction(PublicKey source, PublicKey destination, BigDecimal amount) {
         this.source = source;
@@ -37,6 +38,22 @@ public class Transaction {
 
     public void setSourceNonce(Nonce sourceNonce) {
         this.sourceNonce = sourceNonce;
+    }
+
+    public byte[] getSourceSignature() {
+        return sourceSignature;
+    }
+
+    public void setSourceSignature(byte[] sourceSignature) {
+        this.sourceSignature = sourceSignature;
+    }
+
+    public byte[] getDestinationSignature() {
+        return destinationSignature;
+    }
+
+    public void setDestinationSignature(byte[] destinationSignature) {
+        this.destinationSignature = destinationSignature;
     }
 
     public Nonce getDestinationNonce() {

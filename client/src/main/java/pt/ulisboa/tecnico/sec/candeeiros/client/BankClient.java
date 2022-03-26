@@ -11,12 +11,13 @@ import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.WrongNonceException;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.SignatureException;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 public class BankClient {
     private final ManagedChannel channel;
@@ -185,7 +186,7 @@ public class BankClient {
     }
 
     // ***** Unauthenticated procedures *****
-    public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException {
+    public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException {
         Nonce challengeNonce = Nonce.newNonce();
 
         Bank.CheckAccountRequest request = Bank.CheckAccountRequest.newBuilder()
@@ -194,6 +195,29 @@ public class BankClient {
                 .build();
 
         Bank.CheckAccountResponse response = stub.checkAccount(request);
+
+        try {
+            List<Byte> toSign = new ArrayList<>();
+
+            for (Bank.NonRepudiableTransaction t : response.getTransactionsList()) {
+                insertPrimitiveToByteList(toSign, t.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray());
+                insertPrimitiveToByteList(toSign, t.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray());
+                insertPrimitiveToByteList(toSign, t.getTransaction().getAmount().getBytes());
+                insertPrimitiveToByteList(toSign, t.getSourceNonce().getNonceBytes().toByteArray());
+                insertPrimitiveToByteList(toSign, t.getSourceSignature().getSignatureBytes().toByteArray());
+                // TODO verify signature on transaction?
+            }
+
+            if(!Crypto.verifySignature(serverPublicKey, response.getSignature().getSignatureBytes().toByteArray(),
+                    response.getChallengeNonce().getNonceBytes().toByteArray(),
+                    response.getStatus().name().getBytes(),
+                    byteListToPrimitiveByteArray(toSign)
+            ))
+                throw new FailedAuthenticationException();
+        } catch (InvalidKeyException | SignatureException e) {
+            // Should never happen
+            e.printStackTrace();
+        }
 
         if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
             throw new FailedChallengeException();
@@ -220,5 +244,19 @@ public class BankClient {
 
     private boolean isNextNonce(Nonce sent, Nonce received) {
         return sent.nextNonce().equals(received);
+    }
+
+    // Java does not support inserting a byte[] into a List<Byte> with addAll due to boxing
+    public static void insertPrimitiveToByteList(List<Byte> list, byte[] array) {
+        for (byte b : array)
+            list.add(b);
+    }
+
+    public static byte[] byteListToPrimitiveByteArray(List<Byte> list) {
+        byte[] bytes = new byte[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            bytes[i] = list.get(i);
+        }
+        return bytes;
     }
 }

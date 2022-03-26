@@ -9,6 +9,7 @@ import java.io.*;
 import java.math.BigDecimal;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Base64;
 
 public class LedgerManager {
     private static final Logger logger = LoggerFactory.getLogger(LedgerManager.class);
@@ -67,12 +68,12 @@ public class LedgerManager {
                 }
                 break;
             case "add":
-                if (args.length != 5) {
+                if (args.length != 6) {
                     logger.error("Invalid line in ledger: {}", line);
                     System.exit(1);
                 }
                 try {
-                    bank.addTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]), Nonce.fromString(args[4]));
+                    bank.addTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]), Nonce.fromString(args[4]), signatureFromString(args[5]));
                 } catch (InvalidKeySpecException e) {
                     logger.error("Invalid line in ledger: {}", line);
                     e.printStackTrace();
@@ -80,12 +81,12 @@ public class LedgerManager {
                 }
                 break;
             case "accept":
-                if (args.length != 5) {
+                if (args.length != 6) {
                     logger.error("Invalid line in ledger: {}", line);
                     System.exit(1);
                 }
                 try {
-                    bank.acceptTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]), Nonce.fromString(args[4]));
+                    bank.acceptTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]), Nonce.fromString(args[4]), signatureFromString(args[5]));
                 } catch (InvalidKeySpecException e) {
                     logger.error("Invalid line in ledger: {}", line);
                     e.printStackTrace();
@@ -117,22 +118,22 @@ public class LedgerManager {
         ledgerWriter.flush();
     }
 
-    public void addTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) throws IOException {
+    public void addTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) throws IOException {
         ledgerWriter.append("add-");
-        addTransactionContent(source, destination, amount, nonce);
+        addTransactionContent(source, destination, amount, nonce, signature);
     }
 
-    public void acceptTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) throws IOException {
+    public void acceptTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) throws IOException {
         ledgerWriter.append("accept-");
-        addTransactionContent(source, destination, amount, nonce);
+        addTransactionContent(source, destination, amount, nonce, signature);
     }
 
-    public void rejectTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) throws IOException {
+    public void rejectTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) throws IOException {
         ledgerWriter.append("reject-");
-        addTransactionContent(source, destination, amount, nonce);
+        addTransactionContent(source, destination, amount, nonce, signature);
     }
 
-    private void addTransactionContent(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) throws IOException {
+    private void addTransactionContent(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) throws IOException {
         ledgerWriter.append(Crypto.keyAsString(source));
         ledgerWriter.append('-');
         ledgerWriter.append(Crypto.keyAsString(destination));
@@ -140,8 +141,18 @@ public class LedgerManager {
         ledgerWriter.append(amount.toString());
         ledgerWriter.append('-');
         ledgerWriter.append(nonce.toString());
+        ledgerWriter.append('-');
+        ledgerWriter.append(signatureToString(signature));
         ledgerWriter.append('\n');
         ledgerWriter.flush();
     }
 
+
+    private byte[] signatureFromString(String signature) {
+        return Base64.getDecoder().decode(signature);
+    }
+
+    private String signatureToString(byte[] signature) {
+        return new String(Base64.getEncoder().encode(signature));
+    }
 }

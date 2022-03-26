@@ -50,19 +50,20 @@ public class BftBank {
         }
     }
 
-    protected synchronized void addTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
+    protected synchronized void addTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) {
         Transaction transaction = new Transaction(source, destination, amount);
         BankAccount sourceAccount = getAccount(source);
         sourceAccount.setBalance(sourceAccount.getBalance().subtract(amount));
         transaction.setSourceNonce(nonce);
+        transaction.setSourceSignature(signature);
         accounts.get(destination).getTransactionQueue().add(transaction);
         sourceAccount.setNonce(nonce);
     }
 
-    public synchronized void addTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
-        addTransactionNoLog(source, destination, amount, nonce);
+    public synchronized void addTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) {
+        addTransactionNoLog(source, destination, amount, nonce, signature);
         try {
-            ledgerManager.addTransaction(source, destination, amount, nonce);
+            ledgerManager.addTransaction(source, destination, amount, nonce, signature);
         } catch (IOException e) {
             logger.error("Cannot write to ledger file. Exiting");
             e.printStackTrace();
@@ -70,7 +71,7 @@ public class BftBank {
         }
     }
 
-    protected synchronized void acceptTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
+    protected synchronized void acceptTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) {
         Transaction transaction = new Transaction(source, destination, amount);
         BankAccount destinationAccount = getAccount(destination);
         BankAccount sourceAccount = getAccount(source);
@@ -80,6 +81,7 @@ public class BftBank {
         transaction = destinationAccount.getTransactionQueue().remove(i);
 
         transaction.setDestinationNonce(nonce);
+        transaction.setDestinationSignature(signature);
 
         destinationAccount.setBalance(destinationAccount.getBalance().add(amount));
 
@@ -89,10 +91,10 @@ public class BftBank {
         destinationAccount.setNonce(nonce);
     }
 
-    public synchronized void acceptTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
-        acceptTransactionNoLog(source, destination, amount, nonce);
+    public synchronized void acceptTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) {
+        acceptTransactionNoLog(source, destination, amount, nonce, signature);
         try {
-            ledgerManager.acceptTransaction(source, destination, amount, nonce);
+            ledgerManager.acceptTransaction(source, destination, amount, nonce, signature);
         } catch (IOException e) {
             logger.error("Cannot write to ledger file. Exiting");
             e.printStackTrace();
@@ -111,10 +113,10 @@ public class BftBank {
         destinationAccount.setNonce(nonce);
     }
 
-    public synchronized void rejectTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
+    public synchronized void rejectTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) {
         rejectTransactionNoLog(source, destination, amount, nonce);
         try {
-            ledgerManager.rejectTransaction(source, destination, amount, nonce);
+            ledgerManager.rejectTransaction(source, destination, amount, nonce, signature);
         } catch (IOException e) {
             logger.error("Cannot write to ledger file. Exiting");
             e.printStackTrace();
