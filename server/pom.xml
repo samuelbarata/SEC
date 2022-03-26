@@ -20,6 +20,7 @@
 
 		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.server.BankServer</mainclass>
 		<server.port>8080</server.port>
+		<server.key>./keys/id</server.key>
 		<server.ledgerfile>server.ledger</server.ledgerfile>
 	</properties>
 
@@ -98,6 +99,7 @@
 					<arguments>
 						<argument>${server.port}</argument>
 						<argument>${server.ledgerfile}</argument>
+						<argument>${server.key}</argument>
 					</arguments>
 				</configuration>
 			</plugin>

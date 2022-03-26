@@ -44,6 +44,7 @@ message OpenAccountResponse {
 	}
 	Nonce challengeNonce = 1;
 	Status status = 2;
+	Signature signature = 3;
 }
 
 
@@ -62,12 +63,14 @@ message NonceNegotiationResponse {
 	Nonce challengeNonce = 1;
 	Status status = 2;
 	Nonce nonce = 3;
+	Signature signature = 4;
 }
 
 
 message SendAmountRequest {
 	Nonce nonce = 1;
 	Transaction transaction = 2;
+	Signature signature = 3;
 }
 
 message SendAmountResponse {
@@ -82,6 +85,7 @@ message SendAmountResponse {
 	}
 	Nonce nonce = 1;
 	Status status = 2;
+	Signature signature = 3;
 }
 
 
@@ -89,6 +93,7 @@ message ReceiveAmountRequest {
 	Nonce nonce = 1;
 	Transaction transaction = 2;
 	bool accept = 3;
+	Signature signature = 4;
 }
 
 message ReceiveAmountResponse {
@@ -101,6 +106,7 @@ message ReceiveAmountResponse {
 	}
 	Nonce nonce = 1;
 	Status status = 2;
+	Signature signature = 4;
 }
 
 
@@ -120,6 +126,7 @@ message CheckAccountResponse {
 	Status status = 2;
 	string balance = 3;
 	repeated NonRepudiableTransaction transactions = 4;
+	Signature signature = 5;
 }
 
 

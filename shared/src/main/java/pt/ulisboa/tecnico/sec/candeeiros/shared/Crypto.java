@@ -11,6 +11,7 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 import java.util.Base64;
 
 public class Crypto {
@@ -55,7 +56,30 @@ public class Crypto {
 		return KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(publicKey.getKeyBytes().toByteArray()));
 	}
 
-	public static byte[] sign(byte[] plaintext, PrivateKey privateKey) throws SignatureException, InvalidKeyException {
+	private static byte[] flatten(byte[][] first) {
+        byte[] result = null;
+        for (byte[] curr : first) {
+            result = concat(result, curr);
+        }
+        return result;
+    }
+	private static byte[] concat(byte[] first, byte[] second) {
+        if (first == null) {
+            if (second == null) {
+                return null;
+            }
+            return second;
+        }
+        if (second == null) {
+            return first;
+        }
+        byte[] result = Arrays.copyOf(first, first.length + second.length);
+        System.arraycopy(second, 0, result, first.length, second.length);
+        return result;
+    }
+
+
+	public static byte[] sign(PrivateKey privateKey, byte[]... plaintext) throws SignatureException, InvalidKeyException {
 
 		Signature privateSignature = null;
 		try {
@@ -66,9 +90,24 @@ public class Crypto {
 			e.printStackTrace();
 		}
 		privateSignature.initSign(privateKey);
-		privateSignature.update(plaintext);
+		privateSignature.update(flatten(plaintext));
 		return privateSignature.sign();
 	}
+
+	public static boolean verifySignature(PublicKey publicKey, byte[] signature ,  byte[]... plaintext) throws InvalidKeyException, SignatureException{
+		Signature privateSignature = null;
+		try {
+			privateSignature = Signature.getInstance("SHA256withRSA");
+		} catch (NoSuchAlgorithmException e) {
+			// Should never happen
+			logger.error("Unreachable block: No such algorithm SHA256withRSA");
+			e.printStackTrace();
+		}
+		privateSignature.initVerify(publicKey);
+		privateSignature.update(flatten(plaintext));
+		return privateSignature.verify(signature);
+	}
+	
 
 	public static Key readKeyOrExit(String keyPath, String type) {
 		try {

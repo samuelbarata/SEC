@@ -1,12 +1,12 @@
 import org.junit.jupiter.api.*;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank.*;
 import pt.ulisboa.tecnico.sec.candeeiros.client.BankClient;
-import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedChallengeException;
-import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.WrongNonceException;
+import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.*;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 
@@ -14,21 +14,26 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class BasicTest {
     private static BankClient client;
-    private static PublicKey publicKey1, publicKey2, publicKey3;
+    private static PublicKey publicKey1, publicKey2, publicKey3, serverPublicKey;
+    private static PrivateKey privateKey1, privateKey2, privateKey3;
     private static Nonce nonce1, nonce2;
 
     @BeforeAll
     static void startup() {
         String target = System.getProperty("target");
-        client = new BankClient(target);
+        serverPublicKey = (PublicKey) Crypto.readKeyOrExit(System.getProperty("serverPublicKey"), "pub");
+        client = new BankClient(target, serverPublicKey);
         publicKey1 = (PublicKey) Crypto.readKeyOrExit("./keys/1/id.pub", "pub");
         publicKey2 = (PublicKey) Crypto.readKeyOrExit("./keys/2/id.pub", "pub");
         publicKey3 = (PublicKey) Crypto.readKeyOrExit("./keys/3/id.pub", "pub");
+        privateKey1 = (PrivateKey) Crypto.readKeyOrExit("./keys/1/id", "private");
+        privateKey2 = (PrivateKey) Crypto.readKeyOrExit("./keys/2/id", "private");
+        privateKey3 = (PrivateKey) Crypto.readKeyOrExit("./keys/3/id", "private");
     }
 
     @Test
     @Order(1)
-    void correctUsageTest() throws NoSuchAlgorithmException, InvalidKeySpecException, FailedChallengeException, WrongNonceException {
+    void correctUsageTest() throws NoSuchAlgorithmException, InvalidKeySpecException, FailedChallengeException, WrongNonceException, FailedAuthenticationException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
@@ -57,7 +62,7 @@ class BasicTest {
         assertEquals(0, checkAccountResponse.getTransactionsCount());
 
         // Send Amount
-        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "100", nonce1);
+        sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "100", nonce1);
         assertEquals(SendAmountResponse.Status.SUCCESS, sendAmountResponse.getStatus());
         nonce1 = Nonce.decode(sendAmountResponse.getNonce());
 
@@ -77,7 +82,7 @@ class BasicTest {
         assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getTransaction().getAmount());
 
         // Accept Transaction
-        receiveAmountResponse = client.receiveAmount(publicKey1, publicKey2, "100", true, nonce2);
+        receiveAmountResponse = client.receiveAmount(privateKey1, publicKey1, publicKey2, "100", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.SUCCESS, receiveAmountResponse.getStatus());
         nonce2 = Nonce.decode(receiveAmountResponse.getNonce());
 
@@ -88,12 +93,12 @@ class BasicTest {
         assertEquals(0, checkAccountResponse.getTransactionsCount());
 
         // Send Amount
-        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "100", nonce1);
+        sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "100", nonce1);
         assertEquals(SendAmountResponse.Status.SUCCESS, sendAmountResponse.getStatus());
         nonce1 = Nonce.decode(sendAmountResponse.getNonce());
 
         // Reject Transaction
-        receiveAmountResponse = client.receiveAmount(publicKey1, publicKey2, "100", false, nonce2);
+        receiveAmountResponse = client.receiveAmount(privateKey1, publicKey1, publicKey2, "100", false, nonce2);
         assertEquals(ReceiveAmountResponse.Status.SUCCESS, receiveAmountResponse.getStatus());
         nonce2 = Nonce.decode(receiveAmountResponse.getNonce());
 
@@ -126,7 +131,7 @@ class BasicTest {
 
     @Test
     @Order(2)
-    void incorrectUsageTest() throws WrongNonceException, FailedChallengeException {
+    void incorrectUsageTest() throws WrongNonceException, FailedChallengeException, FailedAuthenticationException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
@@ -141,39 +146,39 @@ class BasicTest {
         assertEquals(CheckAccountResponse.Status.INVALID_KEY, checkAccountResponse.getStatus());
 
         // Send amount from/to account that doesn't exit or to self
-        sendAmountResponse = client.sendAmount(publicKey3, publicKey1, "10", nonce1);
+        sendAmountResponse = client.sendAmount(privateKey3, publicKey3, publicKey1, "10", nonce1);
         assertEquals(SendAmountResponse.Status.SOURCE_INVALID, sendAmountResponse.getStatus());
-        sendAmountResponse = client.sendAmount(publicKey1, publicKey3, "10", nonce1);
+        sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey3, "10", nonce1);
         assertEquals(SendAmountResponse.Status.DESTINATION_INVALID, sendAmountResponse.getStatus());
-        sendAmountResponse = client.sendAmount(publicKey1, publicKey1, "10", nonce1);
+        sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey1, "10", nonce1);
         assertEquals(SendAmountResponse.Status.DESTINATION_INVALID, sendAmountResponse.getStatus());
 
         // Create transactions with invalid amounts
-        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "qwe", nonce1);
+        sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "qwe", nonce1);
         assertEquals(SendAmountResponse.Status.INVALID_NUMBER_FORMAT, sendAmountResponse.getStatus());
-        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "-100", nonce1);
+        sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "-100", nonce1);
         assertEquals(SendAmountResponse.Status.INVALID_NUMBER_FORMAT, sendAmountResponse.getStatus());
-        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "0", nonce1);
+        sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "0", nonce1);
         assertEquals(SendAmountResponse.Status.INVALID_NUMBER_FORMAT, sendAmountResponse.getStatus());
 
         // Send amount bigger than balance
-        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "10000", nonce1);
+        sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "10000", nonce1);
         assertEquals(SendAmountResponse.Status.NOT_ENOUGH_BALANCE, sendAmountResponse.getStatus());
 
         // Accept transaction that does not exist
-        sendAmountResponse = client.sendAmount(publicKey1, publicKey2, "100", nonce1);
+        sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "100", nonce1);
         assertEquals(SendAmountResponse.Status.SUCCESS, sendAmountResponse.getStatus());
         nonce2 = Nonce.decode(sendAmountResponse.getNonce());
 
-        receiveAmountResponse = client.receiveAmount(publicKey1, publicKey2, "200", true, nonce2);
+        receiveAmountResponse = client.receiveAmount(privateKey1, publicKey1, publicKey2, "200", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION, receiveAmountResponse.getStatus());
-        receiveAmountResponse = client.receiveAmount(publicKey3, publicKey2, "100", true, nonce2);
+        receiveAmountResponse = client.receiveAmount(privateKey3, publicKey3, publicKey2, "100", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION, receiveAmountResponse.getStatus());
-        receiveAmountResponse = client.receiveAmount(publicKey1, publicKey3, "100", true, nonce2);
+        receiveAmountResponse = client.receiveAmount(privateKey1, publicKey1, publicKey3, "100", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.INVALID_KEY, receiveAmountResponse.getStatus());
 
         // Use wrong nonce
-        receiveAmountResponse = client.receiveAmount(publicKey1, publicKey2, "100", true, nonce1);
+        receiveAmountResponse = client.receiveAmount(privateKey1, publicKey1, publicKey2, "100", true, nonce1);
         assertEquals(ReceiveAmountResponse.Status.INVALID_NONCE, receiveAmountResponse.getStatus());
     }
 

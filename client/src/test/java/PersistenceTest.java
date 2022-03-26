@@ -2,7 +2,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.client.BankClient;
-import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedChallengeException;
+import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.*;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
 import java.security.NoSuchAlgorithmException;
@@ -13,19 +13,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class PersistenceTest {
     private static BankClient client;
-    private static PublicKey publicKey1, publicKey2, publicKey3;
+    private static PublicKey publicKey1, publicKey2, publicKey3, serverPublicKey;
 
     @BeforeAll
     static void startup() {
         String target = System.getProperty("target");
-        client = new BankClient(target);
+        serverPublicKey = (PublicKey) Crypto.readKeyOrExit(System.getProperty("serverPublicKey"), "pub");
+        client = new BankClient(target, serverPublicKey);
         publicKey1 = (PublicKey) Crypto.readKeyOrExit("./keys/1/id.pub", "pub");
         publicKey2 = (PublicKey) Crypto.readKeyOrExit("./keys/2/id.pub", "pub");
         publicKey3 = (PublicKey) Crypto.readKeyOrExit("./keys/3/id.pub", "pub");
     }
 
     @Test
-    void verifyPersistenceTest() throws NoSuchAlgorithmException, InvalidKeySpecException, FailedChallengeException {
+    void verifyPersistenceTest() throws NoSuchAlgorithmException, InvalidKeySpecException, FailedChallengeException, FailedAuthenticationException {
         Bank.CheckAccountResponse checkAccountResponse;
         Bank.AuditResponse auditResponse;
 

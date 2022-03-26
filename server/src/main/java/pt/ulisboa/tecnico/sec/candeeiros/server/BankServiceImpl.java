@@ -15,17 +15,25 @@ import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
 	private final BftBank bank;
+	private final PrivateKey privateKey;
 
-	public BankServiceImpl(String ledgerFileName) throws IOException {
+	public BankServiceImpl(String ledgerFileName, PrivateKey privateKey) throws IOException {
 		super();
 		bank = new BftBank(ledgerFileName);
+		this.privateKey = privateKey;
 	}
 
 	// ***** Authenticated procedures *****
@@ -60,13 +68,21 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 						e.printStackTrace();
 						break;
 					}
-					response.setChallengeNonce(request.getChallengeNonce());
 
 					bank.createAccount(publicKey);
 					logger.info("Opened account with public key {}.", Crypto.keyAsShortString(publicKey));
 					break;
 			}
-
+			response.setChallengeNonce(request.getChallengeNonce());
+			try {
+				response.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey, 
+				request.getChallengeNonce().getNonceBytes().toByteArray(),
+				status.name().getBytes()
+				))).build());
+			} catch (InvalidKeyException | SignatureException e) {
+				// Should never happen
+				e.printStackTrace();
+			}
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
 		}
@@ -92,6 +108,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			Bank.NonceNegotiationResponse.Builder response = Bank.NonceNegotiationResponse.newBuilder().setStatus(status);
 
 			logger.info("Got nonce negotiation request. Status: {}", status.name());
+			byte[] nonceBytes = ":rolling_eyes:".getBytes();
 
 			switch (status) {
 				case SUCCESS:
@@ -104,11 +121,19 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					}
 
 					BankAccount account = bank.getAccount(key);
-
-					response.setChallengeNonce(request.getChallengeNonce())
-							.setNonce(Bank.Nonce.newBuilder().setNonceBytes(ByteString.copyFrom(account.getNonce().getBytes())).build());
-
+					nonceBytes = account.getNonce().getBytes();
 					break;
+			}
+			response.setChallengeNonce(request.getChallengeNonce()).setNonce(Bank.Nonce.newBuilder().setNonceBytes(ByteString.copyFrom(nonceBytes)).build());
+			try {
+				response.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey, 
+				request.getChallengeNonce().getNonceBytes().toByteArray(),
+				status.name().getBytes(),
+				nonceBytes
+				))).build());
+			} catch (InvalidKeyException | SignatureException e) {
+				// Should never happen
+				e.printStackTrace();
 			}
 
 			responseObserver.onNext(response.build());
@@ -123,6 +148,13 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 
+			if(!Crypto.verifySignature(sourceKey, request.getSignature().getSignatureBytes().toByteArray(),
+					request.getTransaction().getSourcePublicKey().toByteArray(),
+					request.getTransaction().getDestinationPublicKey().toByteArray(),
+					request.getTransaction().getAmount().getBytes(),
+					request.getNonce().getNonceBytes().toByteArray()
+					))
+				return Bank.SendAmountResponse.Status.INVALID_NUMBER_FORMAT;
 			if (!bank.accountExists(destinationKey))
 				return Bank.SendAmountResponse.Status.DESTINATION_INVALID;
 			if (!bank.accountExists(sourceKey))
@@ -138,9 +170,12 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			if (!sourceAccount.getNonce().nextNonce().equals(Nonce.decode(request.getNonce())))
 				return Bank.SendAmountResponse.Status.INVALID_NONCE;
 			return Bank.SendAmountResponse.Status.SUCCESS;
-		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+		} catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException e) {
 			return Bank.SendAmountResponse.Status.INVALID_KEY_FORMAT;
 		} catch (NumberFormatException e) {
+			return Bank.SendAmountResponse.Status.INVALID_NUMBER_FORMAT;
+		} catch (SignatureException e) {
+			//TODO Add  Status to proto and remake return
 			return Bank.SendAmountResponse.Status.INVALID_NUMBER_FORMAT;
 		}
 	}
@@ -157,11 +192,11 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			switch (status) {
 				case SUCCESS:
-					PublicKey sourceKey;
 					PublicKey destinationKey;
+					PublicKey sourceKey;
 					try {
-						sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 						destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+						sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 					} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
 						// Should never happen
 						e.printStackTrace();
@@ -171,7 +206,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					Nonce nonce = Nonce.decode(request.getNonce());
 
 					bank.addTransaction(sourceKey, destinationKey, amount, nonce);
-					response.setNonce(nonce.encode());
 
 					logger.info("Created transaction: {} -> {} (amount: {})",
 							Crypto.keyAsShortString(sourceKey),
@@ -179,7 +213,16 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 							amount);
 					break;
 			}
-
+			response.setNonce(request.getNonce());
+			try {
+				response.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey, 
+					response.getNonce().getNonceBytes().toByteArray(),
+					status.name().getBytes()
+				))).build());
+			} catch (InvalidKeyException | SignatureException e) {
+				// Should never happen
+				e.printStackTrace();
+			}
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
 		}
@@ -191,7 +234,13 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		try {
 			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
-
+			if(!Crypto.verifySignature(sourceKey, request.getSignature().getSignatureBytes().toByteArray(),
+					request.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray(),
+					request.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray(),
+					request.getTransaction().getAmount().getBytes(),
+					request.getNonce().getNonceBytes().toByteArray()
+				))
+				return Bank.ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION;
 			if (!bank.accountExists(destinationKey))
 				return Bank.ReceiveAmountResponse.Status.INVALID_KEY;
 			BankAccount destinationAccount = bank.getAccount(destinationKey);
@@ -201,9 +250,12 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			if (!destinationAccount.getNonce().nextNonce().equals(Nonce.decode(request.getNonce())))
 				return Bank.ReceiveAmountResponse.Status.INVALID_NONCE;
 			return Bank.ReceiveAmountResponse.Status.SUCCESS;
-		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+		} catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException e) {
 			return Bank.ReceiveAmountResponse.Status.INVALID_KEY_FORMAT;
 		} catch (NumberFormatException e) {
+			return Bank.ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION;
+		} catch (SignatureException e) {
+			//TODO Add  Status to proto and remake return
 			return Bank.ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION;
 		}
 	}
@@ -220,8 +272,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			switch (status) {
 				case SUCCESS:
-					PublicKey sourceKey;
 					PublicKey destinationKey;
+					PublicKey sourceKey;
 					try {
 						sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 						destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
@@ -251,6 +303,15 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 								amount);
 					}
 					break;
+			}
+			try {
+				response.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey, 
+				request.getNonce().getNonceBytes().toByteArray(),
+				status.name().getBytes()
+				))).build());
+			} catch (InvalidKeyException | SignatureException e) {
+				// Should never happen
+				e.printStackTrace();
 			}
 
 			responseObserver.onNext(response.build());
@@ -295,6 +356,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					BankAccount account = bank.getAccount(key);
 					response.setBalance(account.getBalance().toString())
 							.setChallengeNonce(request.getChallengeNonce());
+					
+					List<Byte> transactionsList = new ArrayList<Byte>();
 
 					for (Transaction t : account.getTransactionQueue()) {
 
@@ -309,10 +372,22 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 								.setSourceNonce(t.getSourceNonce().encode())
 								.build();
 						response.addTransactions(transaction);
+						transactionsList.addAll(Arrays.asList(t.getSource().getEncoded()));
 					}
 					break;
 			}
-
+			
+			try {
+				response.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey, 
+				response.getChallengeNonce().getNonceBytes().toByteArray(),
+				status.name().getBytes(),
+				response.
+				))).build());
+			} catch (InvalidKeyException | SignatureException e) {
+				// Should never happen
+				e.printStackTrace();
+			}
+			
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
 		}
