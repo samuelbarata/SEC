@@ -38,6 +38,9 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	// ***** Authenticated procedures *****
 	private Bank.OpenAccountResponse.Status openAccountStatus(Bank.OpenAccountRequest request) {
 		try {
+			if (!request.hasSignature() || !request.hasChallengeNonce() || !request.hasPublicKey())
+				return Bank.OpenAccountResponse.Status.INVALID_MESSAGE_FORMAT;
+
 			if (!Signatures.verifyOpenAccountRequestSignature(
 					request.getSignature().getSignatureBytes().toByteArray(),
 					Crypto.decodePublicKey(request.getPublicKey()),
@@ -102,6 +105,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	private Bank.NonceNegotiationResponse.Status nonceNegotiationStatus(Bank.NonceNegotiationRequest request) {
 		try {
+			if (!request.hasChallengeNonce() || !request.hasSignature() || !request.hasPublicKey())
+				return Bank.NonceNegotiationResponse.Status.INVALID_MESSAGE_FORMAT;
 			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
 			if (!Signatures.verifyNonceNegotiationRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), key,
 					request.getChallengeNonce().getNonceBytes().toByteArray(),
@@ -163,6 +168,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	private Bank.SendAmountResponse.Status sendAmountStatus(Bank.SendAmountRequest request) {
 		try {
+			if (!request.hasSignature() || !request.hasNonce() || !request.hasTransaction() ||
+				!request.getTransaction().hasSourcePublicKey() || !request.getTransaction().hasDestinationPublicKey())
+				return Bank.SendAmountResponse.Status.INVALID_MESSAGE_FORMAT;
+
 			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 
@@ -251,6 +260,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	private Bank.ReceiveAmountResponse.Status receiveAmountStatus(Bank.ReceiveAmountRequest request) {
 		try {
+			if (!request.hasNonce() || !request.hasSignature() || !request.hasTransaction() ||
+				!request.getTransaction().hasSourcePublicKey() || !request.getTransaction().hasDestinationPublicKey())
+				return Bank.ReceiveAmountResponse.Status.INVALID_MESSAGE_FORMAT;
+
 			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 
@@ -348,6 +361,9 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	// ***** Unauthenticated procedures *****
 	private Bank.CheckAccountResponse.Status checkAccountStatus(Bank.CheckAccountRequest request) {
 		try {
+			if (!request.hasChallengeNonce() || !request.hasPublicKey())
+				return Bank.CheckAccountResponse.Status.INVALID_MESSAGE_FORMAT;
+
 			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
 			if (!bank.accountExists(key))
 				return Bank.CheckAccountResponse.Status.INVALID_KEY;
@@ -378,8 +394,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					}
 
 					BankAccount account = bank.getAccount(key);
-					response.setBalance(account.getBalance().toString())
-							.setChallengeNonce(request.getChallengeNonce());
+					response.setBalance(account.getBalance().toString());
 
 					for (Transaction t : account.getTransactionQueue()) {
 
@@ -402,8 +417,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					break;
 			}
 
-			response.setSignature(Bank.Signature.newBuilder()
-					.setSignatureBytes(ByteString.copyFrom(Signatures.signCheckAccountResponse(privateKey,
+
+			response.setChallengeNonce(request.getChallengeNonce())
+					.setSignature(Bank.Signature.newBuilder()
+						.setSignatureBytes(ByteString.copyFrom(Signatures.signCheckAccountResponse(privateKey,
 							request.getChallengeNonce().getNonceBytes().toByteArray(),
 							response.getStatus().name(),
 							response.getBalance(),
@@ -433,6 +450,9 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	private Bank.AuditResponse.Status auditStatus(Bank.AuditRequest request) {
 		try {
+			if (!request.hasChallengeNonce() || !request.hasPublicKey())
+				return Bank.AuditResponse.Status.INVALID_MESSAGE_FORMAT;
+
 			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
 			if (!bank.accountExists(key))
 				return Bank.AuditResponse.Status.INVALID_KEY;
