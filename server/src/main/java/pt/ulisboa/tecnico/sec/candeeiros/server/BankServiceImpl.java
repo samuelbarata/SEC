@@ -84,6 +84,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					bank.createAccount(publicKey);
 					logger.info("Opened account with public key {}.", Crypto.keyAsShortString(publicKey));
 					break;
+				case INVALID_MESSAGE_FORMAT:
+					responseObserver.onNext(response.build());
+					responseObserver.onCompleted();
+					return;
 			}
 			response.setChallengeNonce(request.getChallengeNonce());
 			try {
@@ -144,6 +148,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					BankAccount account = bank.getAccount(key);
 					response.setNonce(account.getNonce().encode());
 					break;
+				case INVALID_MESSAGE_FORMAT:
+					responseObserver.onNext(response.build());
+					responseObserver.onCompleted();
+					return;
 			}
 
 			response.setChallengeNonce(request.getChallengeNonce());
@@ -238,6 +246,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 							Crypto.keyAsShortString(destinationKey),
 							amount);
 					break;
+				case INVALID_MESSAGE_FORMAT:
+					responseObserver.onNext(response.build());
+					responseObserver.onCompleted();
+					return;
 			}
 			response.setNonce(request.getNonce());
 			try {
@@ -336,6 +348,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 								amount);
 					}
 					break;
+				case INVALID_MESSAGE_FORMAT:
+					responseObserver.onNext(response.build());
+					responseObserver.onCompleted();
+					return;
 			}
 
 			response.setNonce(request.getNonce());
@@ -415,6 +431,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 						response.addTransactions(transaction);
 					}
 					break;
+				case INVALID_MESSAGE_FORMAT:
+					responseObserver.onNext(response.build());
+					responseObserver.onCompleted();
+					return;
 			}
 
 
@@ -434,7 +454,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	}
 
 	// Java does not support inserting a byte[] into a List<Byte> with addAll due to boxing
-	// TODO Unused, remove
+	// TODO Unused, remove after refactoring everything. Keeping cause I'll probably need it later?
 	public static void insertPrimitiveToByteList(List<Byte> list, byte[] array) {
 		for (byte b : array)
 			list.add(b);
@@ -500,6 +520,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 						response.addTransactions(transaction);
 					}
 					break;
+				case INVALID_MESSAGE_FORMAT:
+					responseObserver.onNext(response.build());
+					responseObserver.onCompleted();
+					return;
 			}
 
 			responseObserver.onNext(response.build());

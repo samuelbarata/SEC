@@ -49,6 +49,9 @@ public class BankClient {
 
         Bank.OpenAccountResponse response = stub.openAccount(request);
 
+        if (response.getStatus() == Bank.OpenAccountResponse.Status.INVALID_MESSAGE_FORMAT)
+            return response;
+
         if (!Signatures.verifyOpenAccountResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
                 response.getChallengeNonce().getNonceBytes().toByteArray(),
                 response.getStatus().name()))
@@ -74,6 +77,9 @@ public class BankClient {
                 .build();
 
         Bank.NonceNegotiationResponse response = stub.nonceNegotiation(request);
+
+        if (response.getStatus() == Bank.NonceNegotiationResponse.Status.INVALID_MESSAGE_FORMAT)
+            return response;
 
         if (!Signatures.verifyNonceNegotiationResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
                 response.getChallengeNonce().getNonceBytes().toByteArray(),
@@ -114,6 +120,9 @@ public class BankClient {
 
         Bank.SendAmountResponse response = stub.sendAmount(request);
 
+        if (response.getStatus() == Bank.SendAmountResponse.Status.INVALID_MESSAGE_FORMAT)
+            return response;
+
         if (!Signatures.verifySendAmountResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
                 response.getNonce().getNonceBytes().toByteArray(),
                 response.getStatus().name()))
@@ -153,6 +162,9 @@ public class BankClient {
 
         Bank.ReceiveAmountResponse response = stub.receiveAmount(request);
 
+        if (response.getStatus() == Bank.ReceiveAmountResponse.Status.INVALID_MESSAGE_FORMAT)
+            return response;
+
         if (!Signatures.verifyReceiveAmountResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
                 response.getNonce().getNonceBytes().toByteArray(),
                 response.getStatus().name()))
@@ -174,6 +186,9 @@ public class BankClient {
                 .build();
 
         Bank.CheckAccountResponse response = stub.checkAccount(request);
+
+        if (response.getStatus() == Bank.CheckAccountResponse.Status.INVALID_MESSAGE_FORMAT)
+            return response;
 
         if (!Signatures.verifyCheckAccountResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
                 response.getChallengeNonce().getNonceBytes().toByteArray(),
@@ -198,6 +213,9 @@ public class BankClient {
 
         Bank.AuditResponse response = stub.audit(request);
 
+        if (response.getStatus() == Bank.AuditResponse.Status.INVALID_MESSAGE_FORMAT)
+            return response;
+
         if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
             throw new FailedChallengeException();
 
@@ -207,19 +225,5 @@ public class BankClient {
 
     private boolean isNextNonce(Nonce sent, Nonce received) {
         return sent.nextNonce().equals(received);
-    }
-
-    // Java does not support inserting a byte[] into a List<Byte> with addAll due to boxing
-    public static void insertPrimitiveToByteList(List<Byte> list, byte[] array) {
-        for (byte b : array)
-            list.add(b);
-    }
-
-    public static byte[] byteListToPrimitiveByteArray(List<Byte> list) {
-        byte[] bytes = new byte[list.size()];
-        for (int i = 0; i < list.size(); i++) {
-            bytes[i] = list.get(i);
-        }
-        return bytes;
     }
 }
