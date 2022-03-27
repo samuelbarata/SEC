@@ -94,12 +94,12 @@ public class LedgerManager {
                 }
                 break;
             case "reject":
-                if (args.length != 5) {
+                if (args.length != 6) {
                     logger.error("Invalid line in ledger: {}", line);
                     System.exit(1);
                 }
                 try {
-                    bank.rejectTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]), Nonce.fromString(args[4]));
+                    bank.rejectTransactionNoLog(Crypto.keyFromString(args[1]), Crypto.keyFromString(args[2]), new BigDecimal(args[3]), Nonce.fromString(args[4]), signatureFromString(args[5]));
                 } catch (InvalidKeySpecException e) {
                     logger.error("Invalid line in ledger: {}", line);
                     e.printStackTrace();

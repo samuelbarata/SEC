@@ -102,7 +102,7 @@ public class BftBank {
         }
     }
 
-    protected synchronized void rejectTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce) {
+    protected synchronized void rejectTransactionNoLog(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) {
         Transaction transaction = new Transaction(source, destination, amount);
         BankAccount destinationAccount = getAccount(destination);
         BankAccount sourceAccount = getAccount(source);
@@ -114,7 +114,7 @@ public class BftBank {
     }
 
     public synchronized void rejectTransaction(PublicKey source, PublicKey destination, BigDecimal amount, Nonce nonce, byte[] signature) {
-        rejectTransactionNoLog(source, destination, amount, nonce);
+        rejectTransactionNoLog(source, destination, amount, nonce, signature);
         try {
             ledgerManager.rejectTransaction(source, destination, amount, nonce, signature);
         } catch (IOException e) {

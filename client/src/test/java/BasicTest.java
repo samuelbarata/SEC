@@ -81,7 +81,7 @@ class BasicTest {
         assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getTransaction().getAmount());
 
         // Accept Transaction
-        receiveAmountResponse = client.receiveAmount(privateKey1, publicKey1, publicKey2, "100", true, nonce2);
+        receiveAmountResponse = client.receiveAmount(privateKey2, publicKey1, publicKey2, "100", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.SUCCESS, receiveAmountResponse.getStatus());
         nonce2 = Nonce.decode(receiveAmountResponse.getNonce());
 
@@ -97,7 +97,7 @@ class BasicTest {
         nonce1 = Nonce.decode(sendAmountResponse.getNonce());
 
         // Reject Transaction
-        receiveAmountResponse = client.receiveAmount(privateKey1, publicKey1, publicKey2, "100", false, nonce2);
+        receiveAmountResponse = client.receiveAmount(privateKey2, publicKey1, publicKey2, "100", false, nonce2);
         assertEquals(ReceiveAmountResponse.Status.SUCCESS, receiveAmountResponse.getStatus());
         nonce2 = Nonce.decode(receiveAmountResponse.getNonce());
 

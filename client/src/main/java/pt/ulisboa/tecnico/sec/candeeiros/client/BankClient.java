@@ -103,7 +103,7 @@ public class BankClient {
                 .setNonce(nextNonce.encode())
                 .setSignature(Bank.Signature.newBuilder()
                     .setSignatureBytes(ByteString.copyFrom(Signatures.signSendAmountRequest(sourcePrivateKey,
-                            sourcePrivateKey.getEncoded(),
+                            sourcePublicKey.getEncoded(),
                             destinationPublicKey.getEncoded(),
                             amount,
                             nextNonce.getBytes()
@@ -114,7 +114,7 @@ public class BankClient {
 
         Bank.SendAmountResponse response = stub.sendAmount(request);
 
-        if (!Signatures.verifySendAmountResponseSignature(request.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
+        if (!Signatures.verifySendAmountResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
                 response.getNonce().getNonceBytes().toByteArray(),
                 response.getStatus().name()))
             throw new FailedAuthenticationException();

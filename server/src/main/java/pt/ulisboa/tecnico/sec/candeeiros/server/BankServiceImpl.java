@@ -104,7 +104,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		try {
 			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
 			if (!Signatures.verifyNonceNegotiationRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), key,
-					request.getChallengeNonce().toByteArray(),
+					request.getChallengeNonce().getNonceBytes().toByteArray(),
 					request.getPublicKey().getKeyBytes().toByteArray()))
 				return Bank.NonceNegotiationResponse.Status.INVALID_SIGNATURE;
 			if (!bank.accountExists(key))
@@ -254,7 +254,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 
-			if (!Signatures.verifyReceiveAmountRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), sourceKey,
+			if (!Signatures.verifyReceiveAmountRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), destinationKey,
 					request.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray(),
 					request.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray(),
 					request.getTransaction().getAmount(),
