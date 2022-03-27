@@ -10,8 +10,8 @@ import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedChallengeExcept
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.WrongNonceException;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Signatures;
 
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -36,26 +36,23 @@ public class BankClient {
 
 
     // ***** Authenticated procedures *****
-    public Bank.OpenAccountResponse openAccount(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException {
+    public Bank.OpenAccountResponse openAccount(PrivateKey privateKey, PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         Nonce challengeNonce = Nonce.newNonce();
 
         Bank.OpenAccountRequest request = Bank.OpenAccountRequest.newBuilder()
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
                 .setChallengeNonce(challengeNonce.encode())
+                .setSignature(Bank.Signature.newBuilder()
+                        .setSignatureBytes(ByteString.copyFrom(Signatures.signOpenAccountRequest(privateKey, challengeNonce.getBytes(), publicKey.getEncoded())))
+                        .build())
                 .build();
 
         Bank.OpenAccountResponse response = stub.openAccount(request);
 
-        try {
-            if(!Crypto.verifySignature(serverPublicKey, response.getSignature().getSignatureBytes().toByteArray(),
+        if (!Signatures.verifyOpenAccountResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
                 response.getChallengeNonce().getNonceBytes().toByteArray(),
-                response.getStatus().name().getBytes()
-                ))
-                throw new FailedAuthenticationException();
-        } catch (InvalidKeyException | SignatureException e) {
-            // Should never happen
-            e.printStackTrace();
-        }
+                response.getStatus().name()))
+            throw new FailedAuthenticationException();
         if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
             throw new FailedChallengeException();
 
@@ -63,29 +60,25 @@ public class BankClient {
     }
 
 
-    public Bank.NonceNegotiationResponse nonceNegotiation(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException {
+    public Bank.NonceNegotiationResponse nonceNegotiation(PrivateKey privateKey, PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         Nonce challengeNonce = Nonce.newNonce();
 
         Bank.NonceNegotiationRequest request = Bank.NonceNegotiationRequest.newBuilder()
                 .setChallengeNonce(challengeNonce.encode())
                 .setPublicKey(Crypto.encodePublicKey(publicKey))
+                .setSignature(Bank.Signature.newBuilder()
+                        .setSignatureBytes(ByteString.copyFrom(Signatures.signNonceNegotiationRequest(privateKey,
+                                challengeNonce.getBytes(),
+                                publicKey.getEncoded())))
+                        .build())
                 .build();
 
         Bank.NonceNegotiationResponse response = stub.nonceNegotiation(request);
 
-        try {
-            if(!Crypto.verifySignature(serverPublicKey, response.getSignature().getSignatureBytes().toByteArray(),
+        if (!Signatures.verifyNonceNegotiationResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
                 response.getChallengeNonce().getNonceBytes().toByteArray(),
-                response.getStatus().name().getBytes(),
-                response.getNonce().getNonceBytes().toByteArray()
-                ))
-                throw new FailedAuthenticationException();
-        } catch (InvalidKeyException | SignatureException e) {
-            // Should never happen
-            e.printStackTrace();
-        }
-        if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
-            throw new FailedChallengeException();
+                response.getStatus().name()))
+            throw new FailedAuthenticationException();
 
         if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
             throw new FailedChallengeException();
@@ -94,7 +87,7 @@ public class BankClient {
     }
 
 
-    public Bank.SendAmountResponse sendAmount(PrivateKey sourcePrivateKey, PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount, Nonce nonce) throws WrongNonceException, FailedAuthenticationException {
+    public Bank.SendAmountResponse sendAmount(PrivateKey sourcePrivateKey, PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount, Nonce nonce) throws WrongNonceException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         Bank.Transaction transaction = Bank.Transaction
                 .newBuilder()
                 .setSourcePublicKey(Crypto.encodePublicKey(sourcePublicKey))
@@ -102,37 +95,30 @@ public class BankClient {
                 .setAmount(amount)
                 .build();
 
+        Nonce nextNonce = nonce.nextNonce();
 
-        Bank.SendAmountRequest.Builder request = Bank.SendAmountRequest
+        Bank.SendAmountRequest request = Bank.SendAmountRequest
                 .newBuilder()
                 .setTransaction(transaction)
-                .setNonce(nonce.nextNonce().encode());
+                .setNonce(nextNonce.encode())
+                .setSignature(Bank.Signature.newBuilder()
+                    .setSignatureBytes(ByteString.copyFrom(Signatures.signSendAmountRequest(sourcePrivateKey,
+                            sourcePrivateKey.getEncoded(),
+                            destinationPublicKey.getEncoded(),
+                            amount,
+                            nextNonce.getBytes()
+                            )))
+                    .build())
+                .build();
 
-        try {
-            request.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(sourcePrivateKey, 
-                request.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray(),
-                request.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray(),
-                request.getTransaction().getAmount().getBytes(),
-                request.getNonce().getNonceBytes().toByteArray()
-            ))));
-        } catch (InvalidKeyException | SignatureException e) {
-            // Should never happen
-            e.printStackTrace();
-        }
 
-        Bank.SendAmountResponse response = stub.sendAmount(request.build());
-    
-        try {
-            if(!Crypto.verifySignature(serverPublicKey, response.getSignature().getSignatureBytes().toByteArray(),
+        Bank.SendAmountResponse response = stub.sendAmount(request);
+
+        if (!Signatures.verifySendAmountResponseSignature(request.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
                 response.getNonce().getNonceBytes().toByteArray(),
-                response.getStatus().name().getBytes()
-                ))
-                throw new FailedAuthenticationException();
-        } catch (InvalidKeyException | SignatureException e) {
-            // Should never happen
-            e.printStackTrace();
-        }
-
+                response.getStatus().name()))
+            throw new FailedAuthenticationException();
+    
         if (!isNextNonce(nonce, Nonce.decode(response.getNonce())))
             throw new WrongNonceException();
 
@@ -140,7 +126,7 @@ public class BankClient {
     }
 
 
-    public Bank.ReceiveAmountResponse receiveAmount(PrivateKey privateKey, PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount, boolean accept, Nonce nonce) throws WrongNonceException, FailedAuthenticationException {
+    public Bank.ReceiveAmountResponse receiveAmount(PrivateKey privateKey, PublicKey sourcePublicKey, PublicKey destinationPublicKey, String amount, boolean accept, Nonce nonce) throws WrongNonceException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         Bank.Transaction transaction = Bank.Transaction
                 .newBuilder()
                 .setSourcePublicKey(Crypto.encodePublicKey(sourcePublicKey))
@@ -148,36 +134,29 @@ public class BankClient {
                 .setAmount(amount)
                 .build();
 
-        Bank.ReceiveAmountRequest.Builder request = Bank.ReceiveAmountRequest
+        Nonce nextNonce = nonce.nextNonce();
+
+        Bank.ReceiveAmountRequest request = Bank.ReceiveAmountRequest
                 .newBuilder()
                 .setTransaction(transaction)
                 .setAccept(accept)
-                .setNonce(nonce.nextNonce().encode());
+                .setNonce(nextNonce.encode())
+                .setSignature(Bank.Signature.newBuilder()
+                        .setSignatureBytes(ByteString.copyFrom(Signatures.signReceiveAmountRequest(privateKey,
+                            sourcePublicKey.getEncoded(),
+                            destinationPublicKey.getEncoded(),
+                            amount,
+                            nextNonce.getBytes(),
+                            accept)))
+                        .build())
+                .build();
 
-        try {
-            request.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey, 
-                request.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray(),
-                request.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray(),
-                request.getTransaction().getAmount().getBytes(),
-                request.getNonce().getNonceBytes().toByteArray()
-            ))));
-        } catch (InvalidKeyException | SignatureException e) {
-            // Should never happen
-            e.printStackTrace();
-        }
+        Bank.ReceiveAmountResponse response = stub.receiveAmount(request);
 
-        Bank.ReceiveAmountResponse response = stub.receiveAmount(request.build());
-
-        try {
-            if(!Crypto.verifySignature(serverPublicKey, response.getSignature().getSignatureBytes().toByteArray(),
+        if (!Signatures.verifyReceiveAmountResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
                 response.getNonce().getNonceBytes().toByteArray(),
-                response.getStatus().name().getBytes()
-                ))
-                throw new FailedAuthenticationException();
-        } catch (InvalidKeyException | SignatureException e) {
-            // Should never happen
-            e.printStackTrace();
-        }
+                response.getStatus().name()))
+            throw new FailedAuthenticationException();
 
         if (!isNextNonce(nonce, Nonce.decode(response.getNonce())))
             throw new WrongNonceException();
@@ -196,28 +175,12 @@ public class BankClient {
 
         Bank.CheckAccountResponse response = stub.checkAccount(request);
 
-        try {
-            List<Byte> toSign = new ArrayList<>();
-
-            for (Bank.NonRepudiableTransaction t : response.getTransactionsList()) {
-                insertPrimitiveToByteList(toSign, t.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray());
-                insertPrimitiveToByteList(toSign, t.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray());
-                insertPrimitiveToByteList(toSign, t.getTransaction().getAmount().getBytes());
-                insertPrimitiveToByteList(toSign, t.getSourceNonce().getNonceBytes().toByteArray());
-                insertPrimitiveToByteList(toSign, t.getSourceSignature().getSignatureBytes().toByteArray());
-                // TODO verify signature on transaction?
-            }
-
-            if(!Crypto.verifySignature(serverPublicKey, response.getSignature().getSignatureBytes().toByteArray(),
-                    response.getChallengeNonce().getNonceBytes().toByteArray(),
-                    response.getStatus().name().getBytes(),
-                    byteListToPrimitiveByteArray(toSign)
-            ))
-                throw new FailedAuthenticationException();
-        } catch (InvalidKeyException | SignatureException e) {
-            // Should never happen
-            e.printStackTrace();
-        }
+        if (!Signatures.verifyCheckAccountResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
+                response.getChallengeNonce().getNonceBytes().toByteArray(),
+                response.getStatus().name(),
+                response.getBalance(),
+                response.getTransactionsList()))
+            throw new FailedAuthenticationException();
 
         if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
             throw new FailedChallengeException();

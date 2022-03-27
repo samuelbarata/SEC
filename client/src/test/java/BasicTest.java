@@ -5,8 +5,7 @@ import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.*;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
+import java.security.*;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 
@@ -33,7 +32,7 @@ class BasicTest {
 
     @Test
     @Order(1)
-    void correctUsageTest() throws NoSuchAlgorithmException, InvalidKeySpecException, FailedChallengeException, WrongNonceException, FailedAuthenticationException {
+    void correctUsageTest() throws NoSuchAlgorithmException, InvalidKeySpecException, FailedChallengeException, WrongNonceException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
@@ -42,16 +41,16 @@ class BasicTest {
         NonceNegotiationResponse nonceNegotiationResponse;
 
         // Create Account
-        openAccountResponse = client.openAccount(publicKey1);
+        openAccountResponse = client.openAccount(privateKey1, publicKey1);
         assertEquals(OpenAccountResponse.Status.SUCCESS, openAccountResponse.getStatus());
-        openAccountResponse = client.openAccount(publicKey2);
+        openAccountResponse = client.openAccount(privateKey2, publicKey2);
         assertEquals(OpenAccountResponse.Status.SUCCESS, openAccountResponse.getStatus());
 
         // Get Nonces
-        nonceNegotiationResponse = client.nonceNegotiation(publicKey1);
+        nonceNegotiationResponse = client.nonceNegotiation(privateKey1, publicKey1);
         assertEquals(NonceNegotiationResponse.Status.SUCCESS, nonceNegotiationResponse.getStatus());
         nonce1 = Nonce.newNonce(nonceNegotiationResponse.getNonce().getNonceBytes().toByteArray());
-        nonceNegotiationResponse = client.nonceNegotiation(publicKey2);
+        nonceNegotiationResponse = client.nonceNegotiation(privateKey2, publicKey2);
         assertEquals(NonceNegotiationResponse.Status.SUCCESS, nonceNegotiationResponse.getStatus());
         nonce2 = Nonce.newNonce(nonceNegotiationResponse.getNonce().getNonceBytes().toByteArray());
 
@@ -131,14 +130,14 @@ class BasicTest {
 
     @Test
     @Order(2)
-    void incorrectUsageTest() throws WrongNonceException, FailedChallengeException, FailedAuthenticationException {
+    void incorrectUsageTest() throws WrongNonceException, FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
         ReceiveAmountResponse receiveAmountResponse;
 
         // Create accounts that already exist
-        openAccountResponse = client.openAccount(publicKey1);
+        openAccountResponse = client.openAccount(privateKey1, publicKey1);
         assertEquals(OpenAccountResponse.Status.ALREADY_EXISTED, openAccountResponse.getStatus());
 
         // Check account that doesn't exist
@@ -170,15 +169,15 @@ class BasicTest {
         assertEquals(SendAmountResponse.Status.SUCCESS, sendAmountResponse.getStatus());
         nonce2 = Nonce.decode(sendAmountResponse.getNonce());
 
-        receiveAmountResponse = client.receiveAmount(privateKey1, publicKey1, publicKey2, "200", true, nonce2);
+        receiveAmountResponse = client.receiveAmount(privateKey2, publicKey1, publicKey2, "200", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION, receiveAmountResponse.getStatus());
-        receiveAmountResponse = client.receiveAmount(privateKey3, publicKey3, publicKey2, "100", true, nonce2);
+        receiveAmountResponse = client.receiveAmount(privateKey2, publicKey3, publicKey2, "100", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION, receiveAmountResponse.getStatus());
-        receiveAmountResponse = client.receiveAmount(privateKey1, publicKey1, publicKey3, "100", true, nonce2);
+        receiveAmountResponse = client.receiveAmount(privateKey3, publicKey1, publicKey3, "100", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.INVALID_KEY, receiveAmountResponse.getStatus());
 
         // Use wrong nonce
-        receiveAmountResponse = client.receiveAmount(privateKey1, publicKey1, publicKey2, "100", true, nonce1);
+        receiveAmountResponse = client.receiveAmount(privateKey2, publicKey1, publicKey2, "100", true, nonce1);
         assertEquals(ReceiveAmountResponse.Status.INVALID_NONCE, receiveAmountResponse.getStatus());
     }
 

@@ -12,17 +12,16 @@ import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import io.grpc.stub.StreamObserver;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.BftBank;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Signatures;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
-import java.util.ArrayList;
 import java.util.List;
 
 public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
@@ -39,12 +38,22 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	// ***** Authenticated procedures *****
 	private Bank.OpenAccountResponse.Status openAccountStatus(Bank.OpenAccountRequest request) {
 		try {
+			if (!Signatures.verifyOpenAccountRequestSignature(
+					request.getSignature().getSignatureBytes().toByteArray(),
+					Crypto.decodePublicKey(request.getPublicKey()),
+					request.getChallengeNonce().getNonceBytes().toByteArray(),
+					request.getPublicKey().getKeyBytes().toByteArray()
+			))
+				return Bank.OpenAccountResponse.Status.INVALID_SIGNATURE;
+
 			PublicKey publicKey = Crypto.decodePublicKey(request.getPublicKey());
 			if (bank.accountExists(publicKey))
 				return Bank.OpenAccountResponse.Status.ALREADY_EXISTED;
 			return Bank.OpenAccountResponse.Status.SUCCESS;
 		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
 			return Bank.OpenAccountResponse.Status.KEY_FAILURE;
+		} catch (SignatureException | InvalidKeyException e) {
+			return Bank.OpenAccountResponse.Status.INVALID_SIGNATURE;
 		}
 	}
 
@@ -75,10 +84,11 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			}
 			response.setChallengeNonce(request.getChallengeNonce());
 			try {
-				response.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey, 
-				request.getChallengeNonce().getNonceBytes().toByteArray(),
-				status.name().getBytes()
-				))).build());
+				response.setSignature(Bank.Signature.newBuilder()
+						.setSignatureBytes(ByteString.copyFrom(Signatures.signOpenAccountResponse(privateKey,
+								request.getChallengeNonce().getNonceBytes().toByteArray(),
+								status.name())))
+						.build());
 			} catch (InvalidKeyException | SignatureException e) {
 				// Should never happen
 				e.printStackTrace();
@@ -93,11 +103,17 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private Bank.NonceNegotiationResponse.Status nonceNegotiationStatus(Bank.NonceNegotiationRequest request) {
 		try {
 			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
+			if (!Signatures.verifyNonceNegotiationRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), key,
+					request.getChallengeNonce().toByteArray(),
+					request.getPublicKey().getKeyBytes().toByteArray()))
+				return Bank.NonceNegotiationResponse.Status.INVALID_SIGNATURE;
 			if (!bank.accountExists(key))
 				return Bank.NonceNegotiationResponse.Status.INVALID_KEY;
 			return Bank.NonceNegotiationResponse.Status.SUCCESS;
 		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
 			return Bank.NonceNegotiationResponse.Status.INVALID_KEY_FORMAT;
+		} catch (SignatureException | InvalidKeyException e) {
+			return Bank.NonceNegotiationResponse.Status.INVALID_SIGNATURE;
 		}
 	}
 
@@ -127,13 +143,14 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			response.setChallengeNonce(request.getChallengeNonce());
 			try {
-				response.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey, 
-					request.getChallengeNonce().getNonceBytes().toByteArray(),
-					status.name().getBytes(),
-					response.getNonce().getNonceBytes().toByteArray()
-				))).build());
-			} catch (InvalidKeyException | SignatureException e) {
-				// Should never happen
+				response.setSignature(Bank.Signature.newBuilder()
+						.setSignatureBytes(ByteString.copyFrom(Signatures.signNonceNegotiationResponse(privateKey,
+								request.getChallengeNonce().getNonceBytes().toByteArray(),
+								status.name()
+								)))
+						.build());
+			} catch (SignatureException | InvalidKeyException e) {
+				// should never happen
 				e.printStackTrace();
 			}
 
@@ -149,12 +166,11 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 
-			if(!Crypto.verifySignature(sourceKey, request.getSignature().getSignatureBytes().toByteArray(),
-					request.getTransaction().getSourcePublicKey().toByteArray(),
-					request.getTransaction().getDestinationPublicKey().toByteArray(),
-					request.getTransaction().getAmount().getBytes(),
-					request.getNonce().getNonceBytes().toByteArray()
-					))
+			if (!Signatures.verifySendAmountRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), sourceKey,
+					request.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray(),
+					request.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray(),
+					request.getTransaction().getAmount(),
+					request.getNonce().getNonceBytes().toByteArray()))
 				return Bank.SendAmountResponse.Status.INVALID_SIGNATURE;
 			if (!bank.accountExists(destinationKey))
 				return Bank.SendAmountResponse.Status.DESTINATION_INVALID;
@@ -216,14 +232,16 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			}
 			response.setNonce(request.getNonce());
 			try {
-				response.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey, 
-					response.getNonce().getNonceBytes().toByteArray(),
-					status.name().getBytes()
-				))).build());
-			} catch (InvalidKeyException | SignatureException e) {
+				response.setSignature(Bank.Signature.newBuilder()
+						.setSignatureBytes(ByteString.copyFrom(Signatures.signSendAmountResponse(privateKey,
+								response.getNonce().getNonceBytes().toByteArray(),
+								status.name())))
+						.build());
+			} catch (SignatureException | InvalidKeyException e) {
 				// Should never happen
 				e.printStackTrace();
 			}
+
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
 		}
@@ -235,13 +253,16 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		try {
 			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
-			if(!Crypto.verifySignature(sourceKey, request.getSignature().getSignatureBytes().toByteArray(),
+
+			if (!Signatures.verifyReceiveAmountRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), sourceKey,
 					request.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray(),
 					request.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray(),
-					request.getTransaction().getAmount().getBytes(),
-					request.getNonce().getNonceBytes().toByteArray()
-				))
+					request.getTransaction().getAmount(),
+					request.getNonce().getNonceBytes().toByteArray(),
+					request.getAccept()
+					))
 				return Bank.ReceiveAmountResponse.Status.INVALID_SIGNATURE;
+
 			if (!bank.accountExists(destinationKey))
 				return Bank.ReceiveAmountResponse.Status.INVALID_KEY;
 			BankAccount destinationAccount = bank.getAccount(destinationKey);
@@ -307,11 +328,12 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			response.setNonce(request.getNonce());
 
 			try {
-				response.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey, 
-					request.getNonce().getNonceBytes().toByteArray(),
-					status.name().getBytes()
-				))).build());
-			} catch (InvalidKeyException | SignatureException e) {
+				response.setSignature(Bank.Signature.newBuilder()
+						.setSignatureBytes(ByteString.copyFrom(Signatures.signReceiveAmountResponse(privateKey,
+								request.getNonce().getNonceBytes().toByteArray(),
+								status.name())))
+						.build());
+			} catch (SignatureException | InvalidKeyException e) {
 				// Should never happen
 				e.printStackTrace();
 			}
@@ -345,10 +367,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					.newBuilder()
 					.setStatus(status);
 
-			List<Byte> toSign = new ArrayList<>();
-			insertPrimitiveToByteList(toSign, response.getChallengeNonce().getNonceBytes().toByteArray());
-			insertPrimitiveToByteList(toSign, status.name().getBytes());
-
 			switch (status) {
 				case SUCCESS:
 					PublicKey key = null;
@@ -362,8 +380,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					BankAccount account = bank.getAccount(key);
 					response.setBalance(account.getBalance().toString())
 							.setChallengeNonce(request.getChallengeNonce());
-
-					insertPrimitiveToByteList(toSign, account.getBalance().toString().getBytes());
 
 					for (Transaction t : account.getTransactionQueue()) {
 
@@ -382,30 +398,26 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 								)
 								.build();
 						response.addTransactions(transaction);
-						insertPrimitiveToByteList(toSign, t.getSource().getEncoded());
-						insertPrimitiveToByteList(toSign, t.getDestination().getEncoded());
-						insertPrimitiveToByteList(toSign, t.getAmount().toString().getBytes());
-						insertPrimitiveToByteList(toSign, t.getSourceNonce().getBytes());
-						insertPrimitiveToByteList(toSign, t.getSourceSignature());
 					}
 					break;
 			}
-			
-			try {
-				response.setSignature(Bank.Signature.newBuilder().setSignatureBytes(ByteString.copyFrom(Crypto.sign(privateKey,
-						byteListToPrimitiveByteArray(toSign)
-				))).build());
-			} catch (InvalidKeyException | SignatureException e) {
-				// Should never happen
-				e.printStackTrace();
-			}
-			
+
+			response.setSignature(Bank.Signature.newBuilder()
+					.setSignatureBytes(ByteString.copyFrom(Signatures.signCheckAccountResponse(privateKey,
+							request.getChallengeNonce().getNonceBytes().toByteArray(),
+							response.getStatus().name(),
+							response.getBalance(),
+							response.getTransactionsList()
+							)))
+					.build());
+
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
 		}
 	}
 
 	// Java does not support inserting a byte[] into a List<Byte> with addAll due to boxing
+	// TODO Unused, remove
 	public static void insertPrimitiveToByteList(List<Byte> list, byte[] array) {
 		for (byte b : array)
 			list.add(b);
