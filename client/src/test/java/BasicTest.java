@@ -11,6 +11,7 @@ import java.security.spec.InvalidKeySpecException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class BasicTest {
     private static BankClient client;
     private static PublicKey publicKey1, publicKey2, publicKey3, serverPublicKey;
@@ -32,19 +33,29 @@ class BasicTest {
 
     @Test
     @Order(1)
-    void correctUsageTest() throws NoSuchAlgorithmException, InvalidKeySpecException, FailedChallengeException, WrongNonceException, FailedAuthenticationException, SignatureException, InvalidKeyException {
+    void createAccountTest() throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
-        SendAmountResponse sendAmountResponse;
-        ReceiveAmountResponse receiveAmountResponse;
-        AuditResponse auditResponse;
-        NonceNegotiationResponse nonceNegotiationResponse;
 
         // Create Account
         openAccountResponse = client.openAccount(privateKey1, publicKey1);
         assertEquals(OpenAccountResponse.Status.SUCCESS, openAccountResponse.getStatus());
         openAccountResponse = client.openAccount(privateKey2, publicKey2);
         assertEquals(OpenAccountResponse.Status.SUCCESS, openAccountResponse.getStatus());
+
+        // Check Account
+        checkAccountResponse = client.checkAccount(publicKey1);
+        assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
+        assertEquals("1000", checkAccountResponse.getBalance());
+        assertEquals(0, checkAccountResponse.getTransactionsCount());
+    }
+
+    @Test
+    @Order(2)
+    void sendAmountTest() throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException, WrongNonceException, NoSuchAlgorithmException, InvalidKeySpecException {
+        CheckAccountResponse checkAccountResponse;
+        SendAmountResponse sendAmountResponse;
+        NonceNegotiationResponse nonceNegotiationResponse;
 
         // Get Nonces
         nonceNegotiationResponse = client.nonceNegotiation(privateKey1, publicKey1);
@@ -53,12 +64,6 @@ class BasicTest {
         nonceNegotiationResponse = client.nonceNegotiation(privateKey2, publicKey2);
         assertEquals(NonceNegotiationResponse.Status.SUCCESS, nonceNegotiationResponse.getStatus());
         nonce2 = Nonce.newNonce(nonceNegotiationResponse.getNonce().getNonceBytes().toByteArray());
-
-        // Check Account
-        checkAccountResponse = client.checkAccount(publicKey1);
-        assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
-        assertEquals("1000", checkAccountResponse.getBalance());
-        assertEquals(0, checkAccountResponse.getTransactionsCount());
 
         // Send Amount
         sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "100", nonce1);
@@ -79,6 +84,13 @@ class BasicTest {
         assertEquals(publicKey1, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
         assertEquals(publicKey2, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
         assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getTransaction().getAmount());
+    }
+
+    @Test
+    @Order(3)
+    void acceptAmountTest() throws WrongNonceException, SignatureException, InvalidKeyException, FailedAuthenticationException, FailedChallengeException {
+        CheckAccountResponse checkAccountResponse;
+        ReceiveAmountResponse receiveAmountResponse;
 
         // Accept Transaction
         receiveAmountResponse = client.receiveAmount(privateKey2, publicKey1, publicKey2, "100", true, nonce2);
@@ -90,6 +102,14 @@ class BasicTest {
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("1100", checkAccountResponse.getBalance());
         assertEquals(0, checkAccountResponse.getTransactionsCount());
+    }
+
+    @Test
+    @Order(4)
+    void rejectAmountTest() throws WrongNonceException, SignatureException, InvalidKeyException, FailedAuthenticationException, FailedChallengeException {
+        CheckAccountResponse checkAccountResponse;
+        SendAmountResponse sendAmountResponse;
+        ReceiveAmountResponse receiveAmountResponse;
 
         // Send Amount
         sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "100", nonce1);
@@ -112,6 +132,14 @@ class BasicTest {
         assertEquals("1100", checkAccountResponse.getBalance());
         assertEquals(0, checkAccountResponse.getTransactionsCount());
 
+
+    }
+
+    @Test
+    @Order(5)
+    void auditTest() throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException, NoSuchAlgorithmException, InvalidKeySpecException {
+        AuditResponse auditResponse;
+
         // Check both accounts audits
         auditResponse = client.audit(publicKey1);
         assertEquals(AuditResponse.Status.SUCCESS, auditResponse.getStatus());
@@ -129,7 +157,7 @@ class BasicTest {
     }
 
     @Test
-    @Order(2)
+    @Order(6)
     void incorrectUsageTest() throws WrongNonceException, FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;

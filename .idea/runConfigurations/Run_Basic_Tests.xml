@@ -15,8 +15,6 @@
               <option value="-Dtarget=localhost:8080" />
               <option value="-Dtest=BasicTest" />
               <option value="-DserverPublicKey=./keys/server/id.pub" />
-              <option value="-DforkCount=0" />
-              <option value="-DreuseForks=false" />
             </list>
           </option>
           <option name="pomFileName" />
