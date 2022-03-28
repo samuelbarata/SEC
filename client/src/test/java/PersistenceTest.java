@@ -4,6 +4,7 @@ import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.client.BankClient;
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.*;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Signatures;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -12,6 +13,7 @@ import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class PersistenceTest {
     private static BankClient client;
@@ -45,6 +47,7 @@ public class PersistenceTest {
         assertEquals(publicKey1, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
         assertEquals(publicKey2, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
         assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getTransaction().getAmount());
+        assertTrue(Signatures.verifyPendingTransactionSignature(checkAccountResponse.getTransactionsList().get(0)));
 
         // Check both accounts audits
         auditResponse = client.audit(publicKey1);
@@ -53,6 +56,7 @@ public class PersistenceTest {
         assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
         assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
         assertEquals("100", auditResponse.getTransactionsList().get(0).getTransaction().getAmount());
+        assertTrue(Signatures.verifyAcceptedTransactionSignature(auditResponse.getTransactionsList().get(0)));
 
         auditResponse = client.audit(publicKey2);
         assertEquals(Bank.AuditResponse.Status.SUCCESS, auditResponse.getStatus());
@@ -60,5 +64,6 @@ public class PersistenceTest {
         assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
         assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
         assertEquals("100", auditResponse.getTransactionsList().get(0).getTransaction().getAmount());
+        assertTrue(Signatures.verifyAcceptedTransactionSignature(auditResponse.getTransactionsList().get(0)));
     }
 }

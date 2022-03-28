@@ -55,8 +55,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			return Bank.OpenAccountResponse.Status.SUCCESS;
 		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
 			return Bank.OpenAccountResponse.Status.KEY_FAILURE;
-		} catch (SignatureException | InvalidKeyException e) {
-			return Bank.OpenAccountResponse.Status.INVALID_SIGNATURE;
 		}
 	}
 
@@ -121,8 +119,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			return Bank.NonceNegotiationResponse.Status.SUCCESS;
 		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
 			return Bank.NonceNegotiationResponse.Status.INVALID_KEY_FORMAT;
-		} catch (SignatureException | InvalidKeyException e) {
-			return Bank.NonceNegotiationResponse.Status.INVALID_SIGNATURE;
 		}
 	}
 
@@ -204,12 +200,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			if (!sourceAccount.getNonce().nextNonce().equals(Nonce.decode(request.getNonce())))
 				return Bank.SendAmountResponse.Status.INVALID_NONCE;
 			return Bank.SendAmountResponse.Status.SUCCESS;
-		} catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException e) {
+		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
 			return Bank.SendAmountResponse.Status.INVALID_KEY_FORMAT;
 		} catch (NumberFormatException e) {
 			return Bank.SendAmountResponse.Status.INVALID_NUMBER_FORMAT;
-		} catch (SignatureException e) {
-			return Bank.SendAmountResponse.Status.INVALID_SIGNATURE;
 		}
 	}
 
@@ -297,12 +291,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			if (!destinationAccount.getNonce().nextNonce().equals(Nonce.decode(request.getNonce())))
 				return Bank.ReceiveAmountResponse.Status.INVALID_NONCE;
 			return Bank.ReceiveAmountResponse.Status.SUCCESS;
-		} catch (InvalidKeySpecException | NoSuchAlgorithmException | InvalidKeyException e) {
+		} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
 			return Bank.ReceiveAmountResponse.Status.INVALID_KEY_FORMAT;
 		} catch (NumberFormatException e) {
 			return Bank.ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION;
-		} catch (SignatureException e) {
-			return Bank.ReceiveAmountResponse.Status.INVALID_SIGNATURE;
 		}
 	}
 
@@ -507,6 +499,14 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 								)
 								.setSourceNonce(t.getSourceNonce().encode())
 								.setDestinationNonce(t.getDestinationNonce().encode())
+								.setSourceSignature(Bank.Signature.newBuilder()
+										.setSignatureBytes(ByteString.copyFrom(t.getSourceSignature()))
+										.build()
+								)
+								.setDestinationSignature(Bank.Signature.newBuilder()
+										.setSignatureBytes(ByteString.copyFrom(t.getDestinationSignature()))
+										.build()
+								)
 								.build();
 						response.addTransactions(transaction);
 					}

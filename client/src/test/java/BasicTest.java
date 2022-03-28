@@ -4,12 +4,14 @@ import pt.ulisboa.tecnico.sec.candeeiros.client.BankClient;
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.*;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Signatures;
 
 import java.security.*;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class BasicTest {
@@ -84,6 +86,7 @@ class BasicTest {
         assertEquals(publicKey1, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
         assertEquals(publicKey2, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
         assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getTransaction().getAmount());
+        assertTrue(Signatures.verifyPendingTransactionSignature(checkAccountResponse.getTransactionsList().get(0)));
     }
 
     @Test
@@ -131,8 +134,6 @@ class BasicTest {
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("1100", checkAccountResponse.getBalance());
         assertEquals(0, checkAccountResponse.getTransactionsCount());
-
-
     }
 
     @Test
@@ -147,6 +148,7 @@ class BasicTest {
         assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
         assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
         assertEquals("100", auditResponse.getTransactionsList().get(0).getTransaction().getAmount());
+        assertTrue(Signatures.verifyAcceptedTransactionSignature(auditResponse.getTransactionsList().get(0)));
 
         auditResponse = client.audit(publicKey2);
         assertEquals(AuditResponse.Status.SUCCESS, auditResponse.getStatus());
@@ -154,6 +156,7 @@ class BasicTest {
         assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
         assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
         assertEquals("100", auditResponse.getTransactionsList().get(0).getTransaction().getAmount());
+        assertTrue(Signatures.verifyAcceptedTransactionSignature(auditResponse.getTransactionsList().get(0)));
     }
 
     @Test

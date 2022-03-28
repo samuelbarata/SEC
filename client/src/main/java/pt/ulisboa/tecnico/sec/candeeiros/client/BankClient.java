@@ -175,7 +175,7 @@ public class BankClient {
     }
 
     // ***** Unauthenticated procedures *****
-    public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
+    public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException {
         Nonce challengeNonce = Nonce.newNonce();
 
         Bank.CheckAccountRequest request = Bank.CheckAccountRequest.newBuilder()
@@ -201,7 +201,7 @@ public class BankClient {
         return response;
     }
 
-    public Bank.AuditResponse audit(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
+    public Bank.AuditResponse audit(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException {
         Nonce challengeNonce = Nonce.newNonce();
 
         Bank.AuditRequest request = Bank.AuditRequest.newBuilder()
