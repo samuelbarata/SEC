@@ -16,8 +16,6 @@ import java.security.InvalidKeyException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SignatureException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class BankClient {
     private final ManagedChannel channel;
@@ -177,7 +175,7 @@ public class BankClient {
     }
 
     // ***** Unauthenticated procedures *****
-    public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException {
+    public Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         Nonce challengeNonce = Nonce.newNonce();
 
         Bank.CheckAccountRequest request = Bank.CheckAccountRequest.newBuilder()
@@ -203,7 +201,7 @@ public class BankClient {
         return response;
     }
 
-    public Bank.AuditResponse audit(PublicKey publicKey) throws FailedChallengeException {
+    public Bank.AuditResponse audit(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         Nonce challengeNonce = Nonce.newNonce();
 
         Bank.AuditRequest request = Bank.AuditRequest.newBuilder()
@@ -215,6 +213,12 @@ public class BankClient {
 
         if (response.getStatus() == Bank.AuditResponse.Status.INVALID_MESSAGE_FORMAT)
             return response;
+
+        if (!Signatures.verifyAuditResponseSignature(response.getSignature().getSignatureBytes().toByteArray(), serverPublicKey,
+                response.getChallengeNonce().getNonceBytes().toByteArray(),
+                response.getStatus().name(),
+                response.getTransactionsList()))
+            throw new FailedAuthenticationException();
 
         if (!challengeNonce.equals(Nonce.decode(response.getChallengeNonce())))
             throw new FailedChallengeException();

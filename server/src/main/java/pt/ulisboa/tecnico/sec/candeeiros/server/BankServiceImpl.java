@@ -438,35 +438,27 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			}
 
 
-			response.setChallengeNonce(request.getChallengeNonce())
-					.setSignature(Bank.Signature.newBuilder()
-						.setSignatureBytes(ByteString.copyFrom(Signatures.signCheckAccountResponse(privateKey,
-							request.getChallengeNonce().getNonceBytes().toByteArray(),
-							response.getStatus().name(),
-							response.getBalance(),
-							response.getTransactionsList()
-							)))
-					.build());
+			try {
+				response.setChallengeNonce(request.getChallengeNonce())
+						.setSignature(Bank.Signature.newBuilder()
+							.setSignatureBytes(ByteString.copyFrom(Signatures.signCheckAccountResponse(privateKey,
+								request.getChallengeNonce().getNonceBytes().toByteArray(),
+								response.getStatus().name(),
+								response.getBalance(),
+								response.getTransactionsList()
+								)))
+						.build());
+			} catch (SignatureException | InvalidKeyException e) {
+				// Should never happen
+				e.printStackTrace();
+			}
 
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
 		}
 	}
 
-	// Java does not support inserting a byte[] into a List<Byte> with addAll due to boxing
-	// TODO Unused, remove after refactoring everything. Keeping cause I'll probably need it later?
-	public static void insertPrimitiveToByteList(List<Byte> list, byte[] array) {
-		for (byte b : array)
-			list.add(b);
-	}
 
-	public static byte[] byteListToPrimitiveByteArray(List<Byte> list) {
-		byte[] bytes = new byte[list.size()];
-		for (int i = 0; i < list.size(); i++) {
-			bytes[i] = list.get(i);
-		}
-		return bytes;
-	}
 
 	private Bank.AuditResponse.Status auditStatus(Bank.AuditRequest request) {
 		try {
@@ -503,7 +495,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 					BankAccount account = bank.getAccount(key);
 
-					response.setChallengeNonce(request.getChallengeNonce());
 
 					for (Transaction t : account.getTransactionHistory()) {
 						Bank.NonRepudiableTransaction transaction = Bank.NonRepudiableTransaction.newBuilder()
@@ -524,6 +515,20 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 					responseObserver.onNext(response.build());
 					responseObserver.onCompleted();
 					return;
+			}
+
+			try {
+				response.setChallengeNonce(request.getChallengeNonce())
+						.setSignature(Bank.Signature.newBuilder()
+								.setSignatureBytes(ByteString.copyFrom(Signatures.signAuditResponse(privateKey,
+										request.getChallengeNonce().getNonceBytes().toByteArray(),
+										response.getStatus().name(),
+										response.getTransactionsList()
+								)))
+								.build());
+			} catch (SignatureException | InvalidKeyException e) {
+				// should never happen
+				e.printStackTrace();
 			}
 
 			responseObserver.onNext(response.build());

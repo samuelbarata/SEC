@@ -156,6 +156,7 @@ message AuditResponse {
 	Nonce challengeNonce = 1;
 	Status status = 2;
 	repeated NonRepudiableTransaction transactions = 3;
+	Signature signature = 4;
 }
 
 

@@ -5,8 +5,10 @@ import pt.ulisboa.tecnico.sec.candeeiros.client.BankClient;
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.*;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,7 +28,7 @@ public class PersistenceTest {
     }
 
     @Test
-    void verifyPersistenceTest() throws NoSuchAlgorithmException, InvalidKeySpecException, FailedChallengeException, FailedAuthenticationException {
+    void verifyPersistenceTest() throws NoSuchAlgorithmException, InvalidKeySpecException, FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         Bank.CheckAccountResponse checkAccountResponse;
         Bank.AuditResponse auditResponse;
 
