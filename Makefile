@@ -21,13 +21,27 @@ server: contract shared
 	cd server;\
 	mvn exec:java
 
-test: contract shared
+test: 
 	cd client;\
-	mvn test -Dtarget=localhost:8080 -Dtest=BasicTest -DserverPublicKey=./keys/server/id.pub
+	mvn test -Dtarget=localhost:4200 -Dtest=BasicTest -DserverPublicKey=./keys/server/id.pub
 
-test_p: contract shared
+test_persistence: 
 	cd client;\
-	mvn test -Dtarget=localhost:8080 -Dtest=PersistenceTest -DserverPublicKey=./keys/server/id.pub
+	mvn test -Dtarget=localhost:4200 -Dtest=PersistenceTest -DserverPublicKey=./keys/server/id.pub
+
+test_byzantine: 
+	cd client;\
+	mvn test -Dtarget=localhost:4200 -Dtest=ByzantineTest -DserverPublicKey=./keys/server/id.pub
+
+test_crash: 
+	cd client;\
+	mvn test -Dtarget=localhost:4200 -Dtest=CrashTest -DserverPublicKey=./keys/server/id.pub
+
+corrupt_ledger:
+	truncate -s -10 ./server/server.ledger
+
+delete_ledger:
+	rm ./server/server.ledger
 
 clean:
 	@mvn clean
