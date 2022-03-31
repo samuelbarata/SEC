@@ -15,6 +15,8 @@ The server is a standalone executable that receives the port, a file with its pr
 The client is a library to be used by other programs. It delegates the responsibility of managing the keys to the calling program. 
 It gives an interface through which the calling program can interact with the server. 
 
+A byzantine client is included that has functions to simulate attacks on the service.
+
 ## Signatures
 
 Every message sent by the server is digitally signed. This guarantees authenticity, integrity and non-repudiation for the server's messages.
