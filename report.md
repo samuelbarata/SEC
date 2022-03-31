@@ -17,6 +17,17 @@ It gives an interface through which the calling program can interact with the se
 
 A byzantine client is included that has functions to simulate attacks on the service.
 
+### Remote Procedure Calls Arguments
+
+ - `OpenAccount(challengeNonce, publicKey, signature) -> (challengeNonce, status, signature)`
+ - `NonceNegotiation(challengeNonce, publicKey, signature) -> (challengeNonce, status, nonce, signature)`
+ - `SendAmount(nonce, transaction, signature) -> (nonce, status, signature)`
+ - `ReceiveAmount(nonce, transaction, accept, signature) -> (nonce, status, signature)` - accept is a boolean where true will accept the transaction, false will reject it
+ - `CheckAccount(challengeNonce, publicKey) -> (challengeNonce, status, balance, transactions, signature)`
+ - `Audit(challengeNonce, publicKey) -> (challengeNonce, status, transactions, signature)`
+
+Where signatures, public keys, and nonces are grpc bytestrings, and transactions are either Transactions or NonRepudiableTransactions, in Audit and CheckAccount.
+
 ## Signatures
 
 Every message sent by the server is digitally signed. This guarantees authenticity, integrity and non-repudiation for the server's messages.
