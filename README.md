@@ -1,4 +1,4 @@
-# CandeeirosBank
+# BftBank
 
 This is a gRPC application, composed of four modules:
 - [contract](contract/) - protocol buffers definition
@@ -6,19 +6,16 @@ This is a gRPC application, composed of four modules:
 - [server](server/) - implementation of service
 - [client](client/) - invocation of service
 
-See the README for each module.  
-
 ----
 
-# Development
+## Running the Project
 
-The intended IDE is IntelliJ Idea. Run configurations are included:
+The project includes a makefile to simplify execution and testing:
 
-- Compile Contract - Compiles the ProtoBuff definitions
-- Compile Shared - Compiles the shared libraries
-- Run Server - Runs the server
-- Run Client - Runs the client
+ - Executing the server: `make server`
+ - Run Basic Usage Tests: `make test`
+ - Run Persistence Tests: `make test_p`
 
-After modifying the contract, make sure to recompile it (run the Contract run configuration). 
-
-If IntelliJ fails to resolve classes or has otherwise outdated data on the client and server dependencies, run a maven reload by selecting the maven tab on the maven tab on the far right and using the reload button. 
+The file `/server/server.ledger` will be created after the basic tests are ran.
+The persistence test checks if the bank state is correct after the basic usage tests.
+The server is intended to be stopped and restarted after basic usage tests.

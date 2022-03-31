@@ -37,17 +37,6 @@ public class Crypto {
 		return new String(Base64.getEncoder().encode(key.getEncoded())).substring(45, 55);
 	}
 
-	public static byte[] challenge(byte[] challengeIn) {
-		MessageDigest md = null;
-		try {
-			md = MessageDigest.getInstance("SHA-1");
-		} catch (NoSuchAlgorithmException e) {
-			// should never happen
-			e.printStackTrace();
-		}
-		return md.digest(challengeIn);
-	}
-
 	public static Bank.PublicKey encodePublicKey(PublicKey publicKey) {
 		return Bank.PublicKey.newBuilder().setKeyBytes(ByteString.copyFrom(publicKey.getEncoded())).build();
 	}
