@@ -19,7 +19,7 @@
 		<version.exec-maven-plugin>3.0.0</version.exec-maven-plugin>
 
 		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.server.BankServer</mainclass>
-		<server.port>8080</server.port>
+		<server.port>4200</server.port>
 		<server.key>./keys/id</server.key>
 		<server.ledgerfile>server.ledger</server.ledgerfile>
 	</properties>
