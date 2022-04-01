@@ -1,12 +1,11 @@
 # SEC Project Report 1st Delivery
-###### Fábio Sousa 93577 -  Pedro Godinho 93608 - Samuel Barata 94230
 
 ## Security Design Decisions
 
 The goal was to guarantee authenticity, integrity and, when applicable, non repudiation and freshness.
 We intentionally omit confidentiality guarantees because the system is, by design, open to the public. 
 
-To this end, we use RSA signatures with SHA256 digest to sign the necessary messages, as well both random Nonces and "sequential" Nonces. 
+To this end, we use RSA signatures with SHA257 digest to sign the necessary messages, as well both random Nonces and "sequential" Nonces. 
 
 ## Program Architecture
 
@@ -17,7 +16,7 @@ It gives an interface through which the calling program can interact with the se
 
 A byzantine client is included that has functions to simulate attacks on the service.
 
-### Remote Procedure Calls Arguments
+## Remote Procedure Calls Arguments
 
  - `OpenAccount(challengeNonce, publicKey, signature) -> (challengeNonce, status, signature)`
  - `NonceNegotiation(challengeNonce, publicKey, signature) -> (challengeNonce, status, nonce, signature)`
@@ -26,18 +25,18 @@ A byzantine client is included that has functions to simulate attacks on the ser
  - `CheckAccount(challengeNonce, publicKey) -> (challengeNonce, status, balance, transactions, signature)`
  - `Audit(challengeNonce, publicKey) -> (challengeNonce, status, transactions, signature)`
 
-Where signatures, public keys, and nonces are grpc bytestrings, and transactions are either Transactions or NonRepudiableTransactions, in Audit and CheckAccount.
+Where signatures, public keys, and nonces are gRPC bytestrings, and transactions are either Transactions or NonRepudiableTransactions, in Audit and CheckAccount.
 
 ## Signatures
 
-Every message sent by the server is digitally signed. This guarantees authenticity, integrity and non-repudiation for the server's messages.
+Every message sent by the server is signed. This guarantees authenticity, integrity and non-repudiation for the server's messages.
 Furthermore, the relevant messages from the client are also signed: 
 - OpenAccount
 - NonceNegotiation 
 - SendAmount 
 - ReceiveAmount
 
-Messages that are not associated with an account are not signed, as they can be sent by anyone, meaning authentication is unnecessary. 
+Messages that are not associated with an account are not signed, as they can be sent by anyone, thus authentication is unnecessary. 
 On those messages, integrity is effectively guaranteed by the fact that the response includes information that allows the client to verify that the server got the right message.
 
 The signatures of messages that create or accept transactions are stored by the server, such that it can guarantee non-repudiation of those transactions. 
@@ -64,4 +63,3 @@ If the last line does not include a linefeed, it is considered corrupt and delet
 This way, in the event of a crash, only ever the last performed action can be eliminated. 
 
 If a line cannot be parsed other than the last line, the server will exit, as this implies a corrupt ledger and cannot be recovered from. 
-

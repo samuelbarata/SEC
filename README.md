@@ -1,4 +1,5 @@
 # BftBank
+###### Fábio Sousa 93577 -  Pedro Godinho 93608 - Samuel Barata 94230
 
 This is a gRPC application, composed of four modules:
 - [contract](contract/) - protocol buffers definition
