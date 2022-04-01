@@ -23,6 +23,7 @@ The project includes a makefile to simplify execution and testing:
 
 The file `/server/server.ledger` will be created after the basic tests are ran.
 Do note that successive test runs might fail due to the server maintaining its state; for instance, createAccount might fail because the account already exists.
+Additinally, test order is important. Persistence tests will test whether the server state is as expected after running basic tests and byzantine tests. Running tests out of order will cause them to fail. 
 
 Example Usage (where `#1` and `#2` are different terminals), showing intended test order:
 
