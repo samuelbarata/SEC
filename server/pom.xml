@@ -20,9 +20,10 @@
 
 		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.server.BankServer</mainclass>
 		<server.port>4200</server.port>
-		<server.pubkey>./keys/id.pub</server.pubkey>
+		<server.pubkey>./keys/private_key.der</server.pubkey>
 		<server.ledgerfile>server.ledger</server.ledgerfile>
 		<server.ks>server.ks</server.ks>
+		<server.cert>./keys/certificate.crt</server.cert>
 	</properties>
 
 	<dependencies>
@@ -102,6 +103,7 @@
 						<argument>${server.ledgerfile}</argument>
 						<argument>${server.pubkey}</argument>
 						<argument>${server.ks}</argument>
+						<argument>${server.cert}</argument>
 					</arguments>
 				</configuration>
 			</plugin>

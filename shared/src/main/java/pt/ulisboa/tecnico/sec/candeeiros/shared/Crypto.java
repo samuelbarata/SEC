@@ -7,6 +7,8 @@ import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
@@ -27,6 +29,15 @@ public class Crypto {
 			e.printStackTrace();
 			return null;
 		}
+	}
+
+	public static PrivateKey privateKeyFromFile(String filename) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+
+		byte[] keyBytes = Files.readAllBytes(Paths.get(filename));
+
+		PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+		return KeyFactory.getInstance("RSA").generatePrivate(spec);
+
 	}
 
 	public static String keyAsString(Key key) {

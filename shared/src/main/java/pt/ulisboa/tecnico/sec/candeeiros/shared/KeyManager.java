@@ -1,15 +1,16 @@
 package pt.ulisboa.tecnico.sec.candeeiros.shared;
 
-import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.*;
 import java.security.KeyStore.*;
 import java.security.cert.*;
 import java.security.cert.Certificate;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Base64;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +22,7 @@ public class KeyManager {
 
     private String keyStoreFile;
     private String keyFile;
+    private String certFile;
 
     private KeyStore keystore;
     private final String alias;
@@ -29,50 +31,38 @@ public class KeyManager {
 
     private static char[] defaultPassword = "0".toCharArray();
 
-    public KeyManager(String keyfile) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException, UnrecoverableEntryException{
-        this(keyfile, "keystore.ks", defaultPassword, defaultPassword, "private");
-    }
-
-    public KeyManager(String keyFile, String keyStoreFile ,char[] keyPassword, char[] keyStorePassword, String alias)
-            throws KeyStoreException, CertificateException, IOException, NoSuchAlgorithmException, UnrecoverableEntryException {
+    public KeyManager(String keyFile, String keyStoreFile ,char[] keyPassword, char[] keyStorePassword, String alias, String certFile)
+            throws Exception {
         keystore = KeyStore.getInstance(KeyStore.getDefaultType());
         this.keyPassword = keyPassword;
         this.keyStorePassword = keyStorePassword;
         this.alias = alias;
         this.keyStoreFile = keyStoreFile;
-        this.keyFile=keyFile;
+        this.keyFile = keyFile;
+        this.certFile = certFile;
 
         try(FileInputStream keyStoreData = new FileInputStream(keyStoreFile)){
             //open existing keystore
             logger.info("Importing KeyStore");
             keystore.load(keyStoreData, keyStorePassword);  
         } catch (IOException e) {
-            //create new keypair
-            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-            logger.info("Creating new RSA key pair");
-            kpg.initialize(8192);
-            KeyPair kp = kpg.generateKeyPair();
+            //importing new keypair
+            keystore.load(null, keyStorePassword);
+            logger.info("importing new RSA key pair");
 
-            //write publicKey to file
-            byte[] rawPubKey = kp.getPublic().getEncoded();
-            FileOutputStream keyfos = new FileOutputStream(keyFile);
-            keyfos.write(rawPubKey);
-            keyfos.close();
+            PrivateKey pk = (PrivateKey) Crypto.privateKeyFromFile(keyFile);
             
-
-            X509Certificate cert;
             CertificateFactory fac = CertificateFactory.getInstance("X509");
-            cert = (X509Certificate) fac.generateCertificate(new ByteArrayInputStream(rawPubKey));
+            FileInputStream is = new FileInputStream(certFile);
+            X509Certificate cert = (X509Certificate) fac.generateCertificate(is);
 
             ProtectionParameter pp = new PasswordProtection(keyPassword);
 
             Certificate[] chain = {(Certificate)cert};
 
-            PrivateKeyEntry privKeyEntry = new PrivateKeyEntry(kp.getPrivate(),chain);
+            PrivateKeyEntry privKeyEntry = new PrivateKeyEntry(pk,chain);
             keystore.setEntry(alias, privKeyEntry, pp);
             
-           
-
             saveKeystore();
         }
     }

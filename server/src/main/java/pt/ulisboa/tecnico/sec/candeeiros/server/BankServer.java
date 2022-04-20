@@ -24,16 +24,16 @@ public class BankServer {
 		}
 
 		// Check arguments.
-		if (args.length < 4) {
+		if (args.length < 5) {
 			logger.error("Argument(s) missing!");
-			logger.error("Usage: java {} port ledger_file pubKey_file keyStore_file%n", Server.class.getName());
+			logger.error("Usage: java {} port ledger_file private_key_file keyStore_file certificate%n", Server.class.getName());
 			return;
 		}
 
 		int port = Integer.parseInt(args[0]);
 		String ledgeFileName = args[1];
 
-		KeyManager keyManager = new KeyManager(args[2], args[3], "0".toCharArray(), "0".toCharArray(), "serverKey");
+		KeyManager keyManager = new KeyManager(args[2], args[3], "0".toCharArray(), "0".toCharArray(), "serverKey", args[4]);
 		PrivateKey privateKey = keyManager.getKey(); //TODO: usar sempre o keymanager
 		//PrivateKey privateKey = (PrivateKey) Crypto.readKeyOrExit(args[2], "private");
 

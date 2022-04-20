@@ -1,6 +1,6 @@
-.PHONY: all clean test test_p contract shared server c_client c_server
+.PHONY: all clean test test_p contract shared server c_client c_server cert
 
-all: contract shared
+all: contract shared cert
 	@mvn compile
 
 contract:
@@ -17,7 +17,7 @@ c_client: contract shared
 	@cd client;\
 	mvn compile
 
-server: contract shared
+server: contract shared cert
 	cd server;\
 	mvn exec:java
 
@@ -43,6 +43,17 @@ corrupt_ledger:
 delete_ledger:
 	rm ./server/server.ledger
 
+cert: server/keys/certificate.crt server/keys/privateKey.key
+
+
+server/keys/certificate.crt server/keys/privateKey.key:
+	cd server/keys;\
+	openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout privateKey.key -out certificate.crt;\
+	openssl pkcs8 -topk8 -inform PEM -outform DER -in privateKey.key -out private_key.der -nocrypt;\
+	openssl rsa -in privateKey.key -pubout -outform DER > id.pub
+	cp server/keys/id.pub client/keys/server/
+
 clean:
 	@mvn clean
 	@rm -f server/server.ledger
+	@rm -f server/keys/certificate.crt server/keys/privateKey.key
