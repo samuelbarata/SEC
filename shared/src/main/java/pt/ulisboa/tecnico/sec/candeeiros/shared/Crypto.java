@@ -7,7 +7,12 @@ import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.*;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
@@ -24,6 +29,19 @@ public class Crypto {
 			));
 		}  catch (NoSuchAlgorithmException e) {
 			logger.error("Unreachable Block. No such algorithm RSA");
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	public static PrivateKey privateKeyFromFileOrExit(String filename){
+		byte[] keyBytes;
+		try {
+			keyBytes = Files.readAllBytes(Paths.get(filename));
+			PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(keyBytes);
+			return KeyFactory.getInstance("RSA").generatePrivate(spec);
+		} catch (IOException | InvalidKeySpecException | NoSuchAlgorithmException e) {
+			logger.error("Failed to read private key from file {}", filename);
 			e.printStackTrace();
 			return null;
 		}
@@ -124,5 +142,19 @@ public class Crypto {
 
 		PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encoded);
 		return keyFactory.generatePrivate(keySpec);
+	}
+
+	public static X509Certificate readCertOrExit(String certPath) {
+		try {
+			CertificateFactory fac = CertificateFactory.getInstance("X509");
+            FileInputStream is = new FileInputStream(certPath);
+            return (X509Certificate) fac.generateCertificate(is);
+		} catch (IOException | NullPointerException | CertificateException e) {
+			logger.error("Invalid certificate in file {}:", certPath);
+			e.printStackTrace();
+			System.exit(1);
+			// For the compiler
+			return null;
+		}
 	}
 }

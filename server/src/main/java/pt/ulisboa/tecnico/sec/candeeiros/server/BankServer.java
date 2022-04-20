@@ -4,6 +4,7 @@ import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.KeyManager;
 
 import java.security.PrivateKey;
 
@@ -12,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 public class BankServer {
 	private static final Logger logger = LoggerFactory.getLogger(BankServer.class);
+	public static KeyManager keyManager;
 
 	public static void main(String[] args) throws Exception {
 		logger.info("Ping Server");
@@ -23,16 +25,18 @@ public class BankServer {
 		}
 
 		// Check arguments.
-		if (args.length < 3) {
+		if (args.length < 5) {
 			logger.error("Argument(s) missing!");
-			logger.error("Usage: java {} port ledger_file key_file%n", Server.class.getName());
+			logger.error("Usage: java {} port ledger_file private_key_file keyStore_file certificate%n", Server.class.getName());
 			return;
 		}
 
 		int port = Integer.parseInt(args[0]);
 		String ledgeFileName = args[1];
-		PrivateKey privateKey = (PrivateKey) Crypto.readKeyOrExit(args[2], "private");;
-		final BindableService impl = new BankServiceImpl(ledgeFileName, privateKey);
+
+		keyManager = new KeyManager(args[2], args[3], "0".toCharArray(), "0".toCharArray(), "serverKey", args[4]);
+
+		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager);
 
 
 		// Create a new server to listen on port.
