@@ -56,4 +56,4 @@ server/keys/certificate.crt server/keys/privateKey.key:
 clean:
 	@mvn clean
 	@rm -f server/server.ledger
-	@rm -f server/keys/certificate.crt server/keys/privateKey.key
+	@#rm -f server/keys/certificate.crt server/keys/privateKey.key

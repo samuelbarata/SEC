@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 public class BankServer {
 	private static final Logger logger = LoggerFactory.getLogger(BankServer.class);
+	public static KeyManager keyManager;
 
 	public static void main(String[] args) throws Exception {
 		logger.info("Ping Server");
@@ -33,11 +34,9 @@ public class BankServer {
 		int port = Integer.parseInt(args[0]);
 		String ledgeFileName = args[1];
 
-		KeyManager keyManager = new KeyManager(args[2], args[3], "0".toCharArray(), "0".toCharArray(), "serverKey", args[4]);
-		PrivateKey privateKey = keyManager.getKey(); //TODO: usar sempre o keymanager
-		//PrivateKey privateKey = (PrivateKey) Crypto.readKeyOrExit(args[2], "private");
+		keyManager = new KeyManager(args[2], args[3], "0".toCharArray(), "0".toCharArray(), "serverKey", args[4]);
 
-		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, privateKey);
+		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager);
 
 
 		// Create a new server to listen on port.

@@ -8,6 +8,7 @@ import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.BankAccount;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.Transaction;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.KeyManager;
 
 import io.grpc.stub.StreamObserver;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.BftBank;
@@ -27,12 +28,13 @@ import java.util.List;
 public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
 	private final BftBank bank;
-	private final PrivateKey privateKey;
+	private final KeyManager keyManager;
 
-	public BankServiceImpl(String ledgerFileName, PrivateKey privateKey) throws IOException {
+	public BankServiceImpl(String ledgerFileName, KeyManager keyManager) throws IOException {
 		super();
 		bank = new BftBank(ledgerFileName);
-		this.privateKey = privateKey;
+
+		this.keyManager = keyManager;
 	}
 
 	// ***** Authenticated procedures *****
@@ -90,7 +92,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			response.setChallengeNonce(request.getChallengeNonce());
 			try {
 				response.setSignature(Bank.Signature.newBuilder()
-						.setSignatureBytes(ByteString.copyFrom(Signatures.signOpenAccountResponse(privateKey,
+						.setSignatureBytes(ByteString.copyFrom(Signatures.signOpenAccountResponse(keyManager.getKey(),
 								request.getChallengeNonce().getNonceBytes().toByteArray(),
 								status.name())))
 						.build());
@@ -153,7 +155,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			response.setChallengeNonce(request.getChallengeNonce());
 			try {
 				response.setSignature(Bank.Signature.newBuilder()
-						.setSignatureBytes(ByteString.copyFrom(Signatures.signNonceNegotiationResponse(privateKey,
+						.setSignatureBytes(ByteString.copyFrom(Signatures.signNonceNegotiationResponse(keyManager.getKey(),
 								request.getChallengeNonce().getNonceBytes().toByteArray(),
 								status.name()
 								)))
@@ -248,7 +250,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			response.setNonce(request.getNonce());
 			try {
 				response.setSignature(Bank.Signature.newBuilder()
-						.setSignatureBytes(ByteString.copyFrom(Signatures.signSendAmountResponse(privateKey,
+						.setSignatureBytes(ByteString.copyFrom(Signatures.signSendAmountResponse(keyManager.getKey(),
 								response.getNonce().getNonceBytes().toByteArray(),
 								status.name())))
 						.build());
@@ -350,7 +352,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			try {
 				response.setSignature(Bank.Signature.newBuilder()
-						.setSignatureBytes(ByteString.copyFrom(Signatures.signReceiveAmountResponse(privateKey,
+						.setSignatureBytes(ByteString.copyFrom(Signatures.signReceiveAmountResponse(keyManager.getKey(),
 								request.getNonce().getNonceBytes().toByteArray(),
 								status.name())))
 						.build());
@@ -433,7 +435,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			try {
 				response.setChallengeNonce(request.getChallengeNonce())
 						.setSignature(Bank.Signature.newBuilder()
-							.setSignatureBytes(ByteString.copyFrom(Signatures.signCheckAccountResponse(privateKey,
+							.setSignatureBytes(ByteString.copyFrom(Signatures.signCheckAccountResponse(keyManager.getKey(),
 								request.getChallengeNonce().getNonceBytes().toByteArray(),
 								response.getStatus().name(),
 								response.getBalance(),
@@ -520,7 +522,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			try {
 				response.setChallengeNonce(request.getChallengeNonce())
 						.setSignature(Bank.Signature.newBuilder()
-								.setSignatureBytes(ByteString.copyFrom(Signatures.signAuditResponse(privateKey,
+								.setSignatureBytes(ByteString.copyFrom(Signatures.signAuditResponse(keyManager.getKey(),
 										request.getChallengeNonce().getNonceBytes().toByteArray(),
 										response.getStatus().name(),
 										response.getTransactionsList()
