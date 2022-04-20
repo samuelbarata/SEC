@@ -1,34 +1,6 @@
 syntax = "proto3";
 package pt.ulisboa.tecnico.sec.candeeiros;
-
-
-// ***** Type definitions *****
-message PublicKey {
-	bytes keyBytes = 1;
-}
-
-message Signature {
-	bytes signatureBytes = 1;
-}
-
-message Nonce {
-	bytes nonceBytes = 1;
-}
-
-message Transaction {
-	PublicKey sourcePublicKey = 1;
-	PublicKey destinationPublicKey = 2;
-	// floats should be avoided when handling money
-	string amount = 3;
-}
-
-message NonRepudiableTransaction {
-	Transaction transaction = 1;
-	Nonce sourceNonce = 2;
-	Nonce destinationNonce = 3;
-	Signature sourceSignature = 4;
-	Signature destinationSignature = 5;
-}
+import "Bank.proto";
 
 
 // ***** Authenticated procedures *****
@@ -36,26 +8,6 @@ message Ack {
     Nonce challengeNonce = 1;
     Signature signature = 2;
 }
-
-message OpenAccountRequest {
-	Nonce challengeNonce = 1;
-	PublicKey publicKey = 2;
-	Signature signature = 3;
-}
-
-message OpenAccountResponse {
-	enum Status {
-		OK = 0;
-		ALREADY_EXISTED = 1;
-		KEY_FAILURE = 2;
-		INVALID_SIGNATURE = 3;
-		INVALID_MESSAGE_FORMAT = 4;
-	}
-	Nonce challengeNonce = 1;
-	Status status = 2;
-	Signature signature = 3;
-}
-
 message OpenAccountIntentRequest {
     OpenAccountRequest openAccountRequest = 1;
     Nonce challengeNonce = 2;
@@ -75,50 +27,6 @@ message OpenAccountAppliedRequest {
     Signature signature = 3;
 }
 
-message NonceNegotiationRequest {
-	Nonce challengeNonce = 1;
-	PublicKey publicKey = 2;
-	Signature signature = 3;
-}
-
-message NonceNegotiationResponse {
-	enum Status {
-		SUCCESS = 0;
-		INVALID_KEY = 1;
-		INVALID_KEY_FORMAT = 2;
-		INVALID_SIGNATURE = 3;
-		INVALID_MESSAGE_FORMAT = 4;
-	}
-	Nonce challengeNonce = 1;
-	Status status = 2;
-	Nonce nonce = 3;
-	Signature signature = 4;
-}
-
-
-message SendAmountRequest {
-	Nonce nonce = 1;
-	Transaction transaction = 2;
-	Signature signature = 3;
-}
-
-message SendAmountResponse {
-	enum Status {
-		SUCCESS = 0;
-		SOURCE_INVALID = 1;
-		DESTINATION_INVALID = 2;
-		NOT_ENOUGH_BALANCE = 3;
-		INVALID_KEY_FORMAT = 4;
-		INVALID_NUMBER_FORMAT = 5;
-		INVALID_NONCE = 6;
-		INVALID_SIGNATURE = 7;
-		INVALID_MESSAGE_FORMAT = 8;
-	}
-	Nonce nonce = 1;
-	Status status = 2;
-	Signature signature = 3;
-}
-
 message SendAmountIntentRequest {
     SendAmountRequest sendAmountRequest = 1;
     Nonce challengeNonce = 2;
@@ -136,28 +44,6 @@ message SendAmountAppliedRequest {
     SendAmountRequest sendAmountRequest = 1;
     Nonce challengeNonce = 2;
     Signature signature = 3;
-}
-
-message ReceiveAmountRequest {
-	Nonce nonce = 1;
-	Transaction transaction = 2;
-	bool accept = 3;
-	Signature signature = 4;
-}
-
-message ReceiveAmountResponse {
-	enum Status {
-		SUCCESS = 0;
-		NO_SUCH_TRANSACTION = 1;
-		INVALID_KEY = 2;
-		INVALID_KEY_FORMAT = 3;
-		INVALID_NONCE = 4;
-		INVALID_SIGNATURE = 5;
-		INVALID_MESSAGE_FORMAT = 6;
-	}
-	Nonce nonce = 1;
-	Status status = 2;
-	Signature signature = 4;
 }
 
 message ReceiveAmountIntentRequest {
@@ -181,48 +67,22 @@ message ReceiveAmountAppliedRequest {
 
 
 // ***** Unauthenticated procedures *****
-message CheckAccountRequest {
-	Nonce challengeNonce = 1;
-	PublicKey publicKey = 2;
+
+message CheckAccountSyncResponse {
+	CheckAccountResponse checkAccountResponse = 1;
+	string timestamp = 2;
+	Signature signature = 3;
 }
 
-message CheckAccountResponse {
-	enum Status {
-		SUCCESS = 0;
-		INVALID_KEY = 1;
-		INVALID_KEY_FORMAT = 2;
-		INVALID_MESSAGE_FORMAT = 3;
-	}
-	Nonce challengeNonce = 1;
-	Status status = 2;
-	string balance = 3;
-	repeated NonRepudiableTransaction transactions = 4;
-	int timestamp = 5;
-	Signature signature = 6;
-}
-
-message AuditRequest {
-	Nonce challengeNonce = 1;
-	PublicKey publicKey = 2;
-}
-
-message AuditResponse {
-	enum Status {
-		SUCCESS = 0;
-		INVALID_KEY = 1;
-		INVALID_KEY_FORMAT = 2;
-		INVALID_MESSAGE_FORMAT = 3;
-	}
-	Nonce challengeNonce = 1;
-	Status status = 2;
-	repeated NonRepudiableTransaction transactions = 3;
-	int timestamp = 4;
-	Signature signature = 5;
+message AuditSyncResponse {
+	AuditResponse auditResponse = 1;
+	string timestamp = 2;
+	Signature signature = 3;
 }
 
 
-// ***** Bank Service
-service BankService {
+// ***** SyncBanks Service
+service SyncBanksService {
 	// Open Account
 	rpc OpenAccountIntent(OpenAccountIntentRequest) returns (Ack);
 	rpc OpenAccountStatus(OpenAccountStatusRequest) returns (Ack);
@@ -240,7 +100,7 @@ service BankService {
 
 	rpc NonceNegotiation(NonceNegotiationRequest) returns (NonceNegotiationResponse);
 
-	rpc CheckAccount(CheckAccountRequest) returns (CheckAccountResponse);
+	rpc CheckAccount(CheckAccountRequest) returns (CheckAccountSyncResponse);
 
-	rpc Audit(AuditRequest) returns (AuditResponse);
+	rpc Audit(AuditRequest) returns (AuditSyncResponse);
 }
