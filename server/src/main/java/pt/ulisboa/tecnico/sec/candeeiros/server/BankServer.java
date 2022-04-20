@@ -4,6 +4,7 @@ import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.KeyManager;
 
 import java.security.PrivateKey;
 
@@ -31,8 +32,12 @@ public class BankServer {
 
 		int port = Integer.parseInt(args[0]);
 		String ledgeFileName = args[1];
-		PrivateKey privateKey = (PrivateKey) Crypto.readKeyOrExit(args[2], "private");;
-		final BindableService impl = new BankServiceImpl(ledgeFileName, privateKey);
+
+		KeyManager keyManager = new KeyManager(args[2]);
+		PrivateKey privateKey = keyManager.getKey(); //TODO: usar sempre o keymanager
+		//PrivateKey privateKey = (PrivateKey) Crypto.readKeyOrExit(args[2], "private");
+
+		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, privateKey);
 
 
 		// Create a new server to listen on port.
