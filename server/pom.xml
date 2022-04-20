@@ -20,8 +20,9 @@
 
 		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.server.BankServer</mainclass>
 		<server.port>4200</server.port>
-		<server.key>./keys/id</server.key>
+		<server.pubkey>./keys/id.pub</server.pubkey>
 		<server.ledgerfile>server.ledger</server.ledgerfile>
+		<server.ks>server.ks</server.ks>
 	</properties>
 
 	<dependencies>
@@ -99,7 +100,8 @@
 					<arguments>
 						<argument>${server.port}</argument>
 						<argument>${server.ledgerfile}</argument>
-						<argument>${server.key}</argument>
+						<argument>${server.pubkey}</argument>
+						<argument>${server.ks}</argument>
 					</arguments>
 				</configuration>
 			</plugin>
