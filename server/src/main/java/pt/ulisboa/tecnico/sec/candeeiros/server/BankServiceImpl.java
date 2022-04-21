@@ -27,7 +27,9 @@ import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
@@ -37,7 +39,9 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	private ArrayList<ManagedChannel> SyncBanksManagedChannels;
 	private ArrayList<SyncBanksServiceGrpc.SyncBanksServiceBlockingStub> SyncBanksStubs;
+	private ConcurrentHashMap<Integer, Bank.OpenAccountResponse> OpenAccountResponses;
 
+	private int timestamp;
 
 	public BankServiceImpl(String ledgerFileName, KeyManager keyManager) throws IOException {
 		super();
@@ -46,11 +50,14 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		this.SyncBanksManagedChannels = new ArrayList<>();
 		this.SyncBanksTargets = new ArrayList<>();
 		this.SyncBanksStubs = new ArrayList<>();
+		this.SyncBanksTargets.add("localhost:4200");
+		this.OpenAccountResponses = new ConcurrentHashMap<>();
 		CreateStubs();
+
+		this.timestamp = 0;
 	}
 
-	public void CreateStubs()
-	{
+	public void CreateStubs() {
 		ManagedChannel channel;
 		for(String target: SyncBanksTargets)
 		{
@@ -63,23 +70,48 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	// ***** Authenticated procedures *****
 
 	@Override
-	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.Ack> responseObserver) {
+	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.OpenAccountResponse> responseObserver) {
 		synchronized (bank) {
-
+			int currentTS = timestamp;
 			SyncBanks.OpenAccountIntentRequest.Builder intentRequest = SyncBanks.OpenAccountIntentRequest.newBuilder();
 			intentRequest.setOpenAccountRequest(request);
+			intentRequest.setTimestamp(timestamp);
 			// send intents to all servers
 			for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
 			{
+				System.out.println("Sent");
 				stub.openAccountIntent(intentRequest.build());
+				System.out.println("Replied");
 			}
-			
-			
+			timestamp++;
+			System.out.println("Start wait");
+			while (OpenAccountResponses.get(currentTS)==null) {
+
+			}
+			Bank.OpenAccountResponse responseSync = OpenAccountResponses.get(currentTS);
+			Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder().setStatus(responseSync.getStatus());
+			response.setChallengeNonce(request.getChallengeNonce());
+			try{
+				response.setSignature(Bank.Signature.newBuilder()
+						.setSignatureBytes(ByteString.copyFrom(Signatures.signOpenAccountResponse(keyManager.getKey(),
+								request.getChallengeNonce().getNonceBytes().toByteArray(),
+								responseSync.getStatus().name())))
+						.build());
+			} catch (InvalidKeyException | SignatureException e) {
+				// Should never happen
+				e.printStackTrace();
+			}
+
+
+			responseObserver.onNext(response.build());
+			responseObserver.onCompleted();
+			System.out.println("Open Account Finished");
+
 			/*Bank.OpenAccountResponse.Status status = openAccountStatus(request);
 
 			logger.info("Got request to open account. Status: {}", status);
 
-			Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder()
+				Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder()
 					.setStatus(status);
 
 			switch (status) {
@@ -118,10 +150,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	}
 
 	@Override
-	public void openAccountResult(Bank.OpenAccountResponse request, StreamObserver<Bank.Ack> responseObserver) {
-		// receive result of open account
-
-		// send result to client
+	public void openAccountSyncRequest(Bank.OpenAccountSync request, StreamObserver<Bank.Ack> responseObserver) {
+		System.out.println("Got Sync Request: " + request.getTimestamp());
+		Bank.OpenAccountResponse response = request.getOpenAccountResponse();
+		OpenAccountResponses.put(request.getTimestamp(), response);
 	}
 
 	private Bank.NonceNegotiationResponse.Status nonceNegotiationStatus(Bank.NonceNegotiationRequest request) {
@@ -554,6 +586,4 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			responseObserver.onCompleted();
 		}
 	}
-
-
 }

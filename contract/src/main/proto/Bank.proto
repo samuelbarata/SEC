@@ -56,6 +56,12 @@ message OpenAccountResponse {
 	Signature signature = 3;
 }
 
+message OpenAccountSync {
+	OpenAccountResponse openAccountResponse = 1;
+	int32 timestamp = 2;
+	Signature signature = 3;
+}
+
 
 message NonceNegotiationRequest {
 	Nonce challengeNonce = 1;
@@ -167,8 +173,8 @@ message AuditResponse {
 
 // ***** Bank Service
 service BankService {
-	rpc OpenAccount(OpenAccountRequest) returns (Ack);
-	rpc OpenAccountResult(OpenAccountResponse) returns (Ack);
+	rpc OpenAccount(OpenAccountRequest) returns (OpenAccountResponse);
+	rpc OpenAccountSyncRequest(OpenAccountSync) returns (Ack);
 	rpc NonceNegotiation(NonceNegotiationRequest) returns (NonceNegotiationResponse);
 	rpc SendAmount(SendAmountRequest) returns (SendAmountResponse);
 	rpc ReceiveAmount(ReceiveAmountRequest) returns (ReceiveAmountResponse);

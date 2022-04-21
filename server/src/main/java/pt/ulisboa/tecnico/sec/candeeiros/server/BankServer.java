@@ -37,10 +37,10 @@ public class BankServer {
 		keyManager = new KeyManager(args[2], args[3], "0".toCharArray(), "0".toCharArray(), "serverKey", args[4]);
 
 		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager);
-
+		final BindableService implSync = (BindableService) new SyncBanksServiceImpl(ledgeFileName, keyManager, 2, "localhost:4200");
 
 		// Create a new server to listen on port.
-		Server server = ServerBuilder.forPort(port).addService(impl).build();
+		Server server = ServerBuilder.forPort(port).addService(impl).addService(implSync).build();
 		// Start the server.
 		server.start();
 		// Server threads are running in the background.
