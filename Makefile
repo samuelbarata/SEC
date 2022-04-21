@@ -21,6 +21,10 @@ server: contract shared cert
 	cd server;\
 	mvn exec:java
 
+client: contract shared
+	cd client;\
+	mvn exec:java -Dhost=localhost -Dport=4200 -DksFile=client.ks -DksPass=a
+
 test: 
 	cd client;\
 	mvn test -Dtarget=localhost:4200 -Dtest=BasicTest -DserverPublicKey=./keys/server/id.pub

@@ -8,8 +8,10 @@ import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedAuthenticationE
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedChallengeException;
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.WrongNonceException;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.KeyManager;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
@@ -18,39 +20,44 @@ import java.util.Scanner;
 public class InteractiveClient {
     private final Logger logger = LoggerFactory.getLogger(InteractiveClient.class);
     private final PublicKey publicKey;
-    private final PrivateKey privateKey;
     private final String target;
     private final BankClient client;
+    private final KeyManager keymanager;
     private Nonce nonce = null;
 
-    public InteractiveClient(String target, String privateKeyFile, String publicKeyFile, String serverPublicKeyFile) {
+    public InteractiveClient(String target, String publicKeyFile, String serverPublicKeyFile, KeyManager keymanager) {
         this.target = target;
         this.publicKey = (PublicKey) Crypto.readKeyOrExit(publicKeyFile, "pub");
-        this.privateKey = (PrivateKey) Crypto.readKeyOrExit(privateKeyFile, "private");
+        this.keymanager = keymanager;
         client = new BankClient(target, (PublicKey) Crypto.readKeyOrExit(serverPublicKeyFile, "pub"));
     }
 
-    private void negotiateNonce() throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
+    private void negotiateNonce()
+            throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
         if (nonce != null)
             return;
-        Bank.NonceNegotiationResponse response = client.nonceNegotiation(privateKey, publicKey);
+        Bank.NonceNegotiationResponse response = client.nonceNegotiation(keymanager.getKey(), publicKey);
         nonce = Nonce.decode(response.getNonce());
     }
 
-    private Bank.OpenAccountResponse openAccount() throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
-        Bank.OpenAccountResponse response = client.openAccount(privateKey, publicKey);
+    private Bank.OpenAccountResponse openAccount()
+            throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
+        Bank.OpenAccountResponse response = client.openAccount(keymanager.getKey(), publicKey);
         negotiateNonce();
         return response;
     }
 
-    private Bank.SendAmountResponse sendAmount(PublicKey destination, String amount) throws WrongNonceException, FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
+    private Bank.SendAmountResponse sendAmount(PublicKey destination, String amount) throws WrongNonceException,
+            FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
         negotiateNonce();
-        Bank.SendAmountResponse response = client.sendAmount(privateKey, publicKey, destination, amount, nonce);
+        Bank.SendAmountResponse response = client.sendAmount(keymanager.getKey(), publicKey, destination, amount,
+                nonce);
         nonce = Nonce.decode(response.getNonce());
         return response;
     }
 
-    private Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException {
+    private Bank.CheckAccountResponse checkAccount(PublicKey publicKey)
+            throws FailedChallengeException, FailedAuthenticationException {
         Bank.CheckAccountResponse response = client.checkAccount(publicKey);
         return response;
     }
@@ -113,7 +120,8 @@ public class InteractiveClient {
                         try {
                             PublicKey account = (PublicKey) Crypto.readKey(commandArgs[1], "pub");
                             checkAccount(account);
-                        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | FailedChallengeException | FailedAuthenticationException e) {
+                        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException
+                                | FailedChallengeException | FailedAuthenticationException e) {
                             e.printStackTrace();
                         }
                     }
@@ -124,7 +132,7 @@ public class InteractiveClient {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws FileNotFoundException, IOException {
         // check arguments
         if (args.length < 4) {
             System.err.println("Argument(s) missing!");
@@ -134,18 +142,26 @@ public class InteractiveClient {
         final String host = args[0];
         final int port = Integer.parseInt(args[1]);
         final String target = host + ":" + port;
+        final String keyStorePath = args[2];
+        final String keyStorePassword = args[3];
 
         Scanner scan = new Scanner(System.in);
 
         System.out.println("Enter private key file location: ");
         String privateKeyFile = scan.nextLine();
+        // System.out.println("Enter private key password: ");
+        String password = "0";
         System.out.println("Enter public key file location: ");
         String publicKeyFile = scan.nextLine();
+        System.out.println("Enter certificate file location: ");
+        String certFile = scan.nextLine();
         System.out.println("Enter server public key file location: ");
         String serverPublicKeyFile = scan.nextLine();
 
-        InteractiveClient client = new InteractiveClient(target, privateKeyFile, publicKeyFile, serverPublicKeyFile);
+        KeyManager km = new KeyManager(privateKeyFile, keyStorePath, password.toCharArray(),
+                keyStorePassword.toCharArray(), privateKeyFile, certFile);
+
+        InteractiveClient client = new InteractiveClient(target, publicKeyFile, serverPublicKeyFile, km);
         client.run();
     }
 }
-

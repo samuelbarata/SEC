@@ -24,6 +24,7 @@
 		<server.ledgerfile>server.ledger</server.ledgerfile>
 		<server.ks>server.ks</server.ks>
 		<server.cert>./keys/certificate.crt</server.cert>
+		<server.alias>server</server.alias>
 	</properties>
 
 	<dependencies>
@@ -104,6 +105,7 @@
 						<argument>${server.pubkey}</argument>
 						<argument>${server.ks}</argument>
 						<argument>${server.cert}</argument>
+						<argument>${server.alias}</argument>
 					</arguments>
 				</configuration>
 			</plugin>

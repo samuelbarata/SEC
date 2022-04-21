@@ -25,19 +25,24 @@ public class BankServer {
 		}
 
 		// Check arguments.
-		if (args.length < 5) {
+		if (args.length < 6) {
 			logger.error("Argument(s) missing!");
-			logger.error("Usage: java {} port ledger_file private_key_file keyStore_file certificate%n", Server.class.getName());
+			logger.error("Usage: java {} port ledger_file private_key_file keyStore_file certificate server_name%n",
+					Server.class.getName());
 			return;
 		}
 
 		int port = Integer.parseInt(args[0]);
 		String ledgeFileName = args[1];
+		String key_path = args[2];
+		String keyStore_path = args[3];
+		String cert_path = args[4];
+		String server_name = args[5];
 
-		keyManager = new KeyManager(args[2], args[3], "0".toCharArray(), "0".toCharArray(), "serverKey", args[4]);
+		keyManager = new KeyManager(key_path, keyStore_path, "0".toCharArray(), "0".toCharArray(), server_name + "key",
+				cert_path);
 
 		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager);
-
 
 		// Create a new server to listen on port.
 		Server server = ServerBuilder.forPort(port).addService(impl).build();
