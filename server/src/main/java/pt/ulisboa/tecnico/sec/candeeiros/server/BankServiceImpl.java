@@ -84,12 +84,11 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		// send intents to all servers
 		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
 		{
-			System.out.println("Sent");
-			stub.openAccountIntent(intentRequest.build());
-			System.out.println("Replied");
+			logger.info("Bank Service: Sent Open Account Sync");
+			stub.openAccountSync(intentRequest.build());
 		}
 		timestamp++;
-		System.out.println("Start wait");
+		logger.info("Bank Service: Waiting for Open Account Response");
 		while (OpenAccountResponses.get(currentTS)==null) {
 			try {
 				Thread.sleep(100);
@@ -281,7 +280,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
 		{
 			System.out.println("Sent");
-			stub.sendAmountIntent(intentRequest.build());
+			stub.sendAmountSync(intentRequest.build());
 			System.out.println("Replied");
 		}
 		timestamp++;
@@ -415,7 +414,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
 		{
 			System.out.println("Sent");
-			stub.receiveAmountIntent(intentRequest.build());
+			stub.receiveAmountSync(intentRequest.build());
 			System.out.println("Replied");
 		}
 		timestamp++;

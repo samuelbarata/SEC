@@ -157,6 +157,16 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     }
 
     @Override
+    public void openAccountSync(SyncBanks.OpenAccountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
+        responseObserver.onNext(buildAck());
+        responseObserver.onCompleted();
+        for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+        {
+            stub.openAccountIntent(request);
+        }
+    }
+
+    @Override
     public void openAccountIntent(SyncBanks.OpenAccountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
@@ -294,6 +304,16 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         request.setStatus(status);
 
         return request.build();
+    }
+
+    @Override
+    public void sendAmountSync(SyncBanks.SendAmountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
+        responseObserver.onNext(buildAck());
+        responseObserver.onCompleted();
+        for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+        {
+            stub.sendAmountIntent(request);
+        }
     }
 
     @Override
@@ -439,6 +459,16 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
                     Crypto.keyAsShortString(sourceKey),
                     Crypto.keyAsShortString(destinationKey),
                     amount);
+        }
+    }
+
+    @Override
+    public void receiveAmountSync(SyncBanks.ReceiveAmountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
+        responseObserver.onNext(buildAck());
+        responseObserver.onCompleted();
+        for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+        {
+            stub.receiveAmountIntent(request);
         }
     }
 

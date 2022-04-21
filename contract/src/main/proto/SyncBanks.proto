@@ -89,16 +89,19 @@ message AuditSyncResponse {
 // ***** SyncBanks Service
 service SyncBanksService {
 	// Open Account
+  rpc OpenAccountSync(OpenAccountIntentRequest) returns (Ack);
 	rpc OpenAccountIntent(OpenAccountIntentRequest) returns (Ack);
 	rpc OpenAccountStatus(OpenAccountStatusRequest) returns (Ack);
 	rpc OpenAccountApplied(OpenAccountAppliedRequest) returns (Ack);
 
 	// Send Amount
+  rpc SendAmountSync(SendAmountIntentRequest) returns (Ack);
 	rpc SendAmountIntent(SendAmountIntentRequest) returns (Ack);
 	rpc SendAmountStatus(SendAmountStatusRequest) returns (Ack);
 	rpc SendAmountApplied(SendAmountAppliedRequest) returns (Ack);
 
 	// Receive Amount
+  rpc ReceiveAmountSync(ReceiveAmountIntentRequest) returns (Ack);
 	rpc ReceiveAmountIntent(ReceiveAmountIntentRequest) returns (Ack);
 	rpc ReceiveAmountStatus(ReceiveAmountStatusRequest) returns (Ack);
 	rpc ReceiveAmountApplied(ReceiveAmountAppliedRequest) returns (Ack);
