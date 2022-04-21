@@ -46,6 +46,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		this.SyncBanksManagedChannels = new ArrayList<>();
 		this.SyncBanksTargets = new ArrayList<>();
 		this.SyncBanksStubs = new ArrayList<>();
+		CreateStubs();
 	}
 
 	public void CreateStubs()
