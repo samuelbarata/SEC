@@ -10,10 +10,12 @@ import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.WrongNonceException;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.KeyManager;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.exceptions.UnexistingKeyException;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.security.*;
+import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Scanner;
 
@@ -25,10 +27,11 @@ public class InteractiveClient {
     private final KeyManager keymanager;
     private Nonce nonce = null;
 
-    public InteractiveClient(String target, String publicKeyFile, String serverPublicKeyFile, KeyManager keymanager) {
+    public InteractiveClient(String target, String serverPublicKeyFile, KeyManager keymanager) {
         this.target = target;
-        this.publicKey = (PublicKey) Crypto.readKeyOrExit(publicKeyFile, "pub");
+        // this.publicKey = (PublicKey) Crypto.readKeyOrExit(publicKeyFile, "pub");
         this.keymanager = keymanager;
+        this.publicKey = keymanager.getPublicKey();
         client = new BankClient(target, (PublicKey) Crypto.readKeyOrExit(serverPublicKeyFile, "pub"));
     }
 
@@ -132,7 +135,7 @@ public class InteractiveClient {
         }
     }
 
-    public static void main(String[] args) throws FileNotFoundException, IOException {
+    public static void main(String[] args) throws FileNotFoundException, IOException, CertificateException {
         // check arguments
         if (args.length < 4) {
             System.err.println("Argument(s) missing!");
@@ -146,22 +149,30 @@ public class InteractiveClient {
         final String keyStorePassword = args[3];
 
         Scanner scan = new Scanner(System.in);
+        KeyManager km;
+        String keyPassword = "0";
 
-        System.out.println("Enter private key file location: ");
-        String privateKeyFile = scan.nextLine();
-        // System.out.println("Enter private key password: ");
-        String password = "0";
-        System.out.println("Enter public key file location: ");
-        String publicKeyFile = scan.nextLine();
-        System.out.println("Enter certificate file location: ");
-        String certFile = scan.nextLine();
+        System.out.println("Enter key name: ");
+        String name = scan.nextLine();
+        // System.out.println("Enter public key file location: ");
+        // String publicKeyFile = scan.nextLine();
+
+        try {
+            km = new KeyManager(name, keyStorePath, keyPassword.toCharArray(), keyStorePassword.toCharArray());
+        } catch (UnexistingKeyException | IOException e) {
+            System.out.println("Enter private key file location: ");
+            String privateKeyFile = scan.nextLine();
+            System.out.println("Enter certificate file location: ");
+            String certFile = scan.nextLine();
+
+            km = new KeyManager(privateKeyFile, keyStorePath, keyPassword.toCharArray(),
+                    keyStorePassword.toCharArray(), name, certFile);
+        }
+
         System.out.println("Enter server public key file location: ");
         String serverPublicKeyFile = scan.nextLine();
 
-        KeyManager km = new KeyManager(privateKeyFile, keyStorePath, password.toCharArray(),
-                keyStorePassword.toCharArray(), privateKeyFile, certFile);
-
-        InteractiveClient client = new InteractiveClient(target, publicKeyFile, serverPublicKeyFile, km);
+        InteractiveClient client = new InteractiveClient(target, serverPublicKeyFile, km);
         client.run();
     }
 }
