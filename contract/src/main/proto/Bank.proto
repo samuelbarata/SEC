@@ -107,6 +107,12 @@ message SendAmountResponse {
 	Signature signature = 3;
 }
 
+message SendAmountSync {
+	SendAmountResponse sendAmountResponse = 1;
+	int32 timestamp = 2;
+	Signature signature = 3;
+}
+
 
 message ReceiveAmountRequest {
 	Nonce nonce = 1;
@@ -130,6 +136,11 @@ message ReceiveAmountResponse {
 	Signature signature = 4;
 }
 
+message ReceiveAmountSync {
+	ReceiveAmountResponse receiveAmountResponse = 1;
+	int32 timestamp = 2;
+	Signature signature = 3;
+}
 
 // ***** Unauthenticated procedures *****
 message CheckAccountRequest {
@@ -175,9 +186,14 @@ message AuditResponse {
 service BankService {
 	rpc OpenAccount(OpenAccountRequest) returns (OpenAccountResponse);
 	rpc OpenAccountSyncRequest(OpenAccountSync) returns (Ack);
+
 	rpc NonceNegotiation(NonceNegotiationRequest) returns (NonceNegotiationResponse);
+
 	rpc SendAmount(SendAmountRequest) returns (SendAmountResponse);
+	rpc SendAmountSyncRequest(SendAmountSync) returns (Ack);
+
 	rpc ReceiveAmount(ReceiveAmountRequest) returns (ReceiveAmountResponse);
+	rpc ReceiveAmountSyncRequest(ReceiveAmountSync) returns (Ack);
 
 	rpc CheckAccount(CheckAccountRequest) returns (CheckAccountResponse);
 	rpc Audit(AuditRequest) returns (AuditResponse);
