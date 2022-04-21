@@ -35,14 +35,14 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
 	private final BftBank bank;
 	private final KeyManager keyManager;
-	private List<String> SyncBanksTargets;
+	private final List<String> SyncBanksTargets;
 
-	private ArrayList<ManagedChannel> SyncBanksManagedChannels;
-	private ArrayList<SyncBanksServiceGrpc.SyncBanksServiceBlockingStub> SyncBanksStubs;
+	private final ArrayList<ManagedChannel> SyncBanksManagedChannels;
+	private final ArrayList<SyncBanksServiceGrpc.SyncBanksServiceBlockingStub> SyncBanksStubs;
 
-	private ConcurrentHashMap<Integer, Bank.OpenAccountResponse> OpenAccountResponses;
-	private ConcurrentHashMap<Integer, Bank.SendAmountResponse> SendAmountResponses;
-	private ConcurrentHashMap<Integer, Bank.ReceiveAmountResponse> ReceiveAmountResponses;
+	private final ConcurrentHashMap<Integer, Bank.OpenAccountResponse> OpenAccountResponses;
+	private final ConcurrentHashMap<Integer, Bank.SendAmountResponse> SendAmountResponses;
+	private final ConcurrentHashMap<Integer, Bank.ReceiveAmountResponse> ReceiveAmountResponses;
 
 	private int timestamp;
 

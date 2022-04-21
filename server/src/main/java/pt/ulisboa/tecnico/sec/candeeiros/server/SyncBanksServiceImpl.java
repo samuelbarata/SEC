@@ -35,30 +35,29 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     //Open Account Storages
     private final HashMap<Integer, openAccountIntent> openAccountIntents;
     private final HashMap<Integer, Bank.OpenAccountResponse> openAccountResponses;
-    private HashMap<SyncBanks.OpenAccountAppliedRequest, Integer> openAppliedCounter;
+    private final HashMap<SyncBanks.OpenAccountAppliedRequest, Integer> openAppliedCounter;
 
     //Send Amount Storages
     private final HashMap<Integer, sendAmountIntent> sendAmountIntents;
     private final HashMap<Integer, Bank.SendAmountResponse> sendAmountResponses;
-    private HashMap<SyncBanks.SendAmountAppliedRequest, Integer> sendAmountAppliedCounter;
+    private final HashMap<SyncBanks.SendAmountAppliedRequest, Integer> sendAmountAppliedCounter;
 
     //Receive Amount Storages
     private final HashMap<Integer, receiveAmountIntent> receiveAmountIntents;
     private final HashMap<Integer, Bank.ReceiveAmountResponse> receiveAmountResponses;
-    private HashMap<SyncBanks.ReceiveAmountAppliedRequest, Integer> receiveAmountAppliedCounter;
+    private final HashMap<SyncBanks.ReceiveAmountAppliedRequest, Integer> receiveAmountAppliedCounter;
 
     //Communication between SyncBanks
-    private List<String> SyncBanksTargets;
-    private ArrayList<ManagedChannel> SyncBanksManagedChannels;
-    private ArrayList<SyncBanksServiceGrpc.SyncBanksServiceBlockingStub> SyncBanksStubs;
+    private final List<String> SyncBanksTargets;
+    private final ArrayList<ManagedChannel> SyncBanksManagedChannels;
+    private final ArrayList<SyncBanksServiceGrpc.SyncBanksServiceBlockingStub> SyncBanksStubs;
 
     //Communication between Banks
-    private String BankTarget;
-    private ManagedChannel BankManagedChannel;
+    private final String BankTarget;
     private BankServiceGrpc.BankServiceBlockingStub BankStub;
 
     //***
-    private int totalServers;
+    private final int totalServers;
 
     SyncBanksServiceImpl(String ledgerFileName, KeyManager keyManager, int totalServers, String bankTarget) throws IOException {
         super();
@@ -100,8 +99,8 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
             SyncBanksStubs.add(SyncBanksServiceGrpc.newBlockingStub(channel));
         }
 
-        BankManagedChannel = ManagedChannelBuilder.forTarget(BankTarget).usePlaintext().build();
-        BankStub = BankServiceGrpc.newBlockingStub(BankManagedChannel);
+        ManagedChannel bankManagedChannel = ManagedChannelBuilder.forTarget(BankTarget).usePlaintext().build();
+        BankStub = BankServiceGrpc.newBlockingStub(bankManagedChannel);
 
     }
 
@@ -224,8 +223,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onCompleted();
         System.out.println("Open Account: Got Applied");
         // add to applied array of this open account applied
-        if(openAppliedCounter.get(request)!=null) openAppliedCounter.put(request, openAppliedCounter.get(request)+1);
-        else openAppliedCounter.put(request, 1);
+        openAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
         if(openAppliedCounter.get(request)>=(Math.ceil(totalServers/2))) {
             System.out.println("Open Account: Applied Majority");
@@ -375,8 +373,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onCompleted();
         System.out.println("Send Amount: Got Applied");
         // add to applied array of this send amount applied
-        if(sendAmountAppliedCounter.get(request)!=null) sendAmountAppliedCounter.put(request, sendAmountAppliedCounter.get(request)+1);
-        else sendAmountAppliedCounter.put(request, 1);
+        sendAmountAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
         if(sendAmountAppliedCounter.get(request)>=(Math.ceil(totalServers/2))) {
             System.out.println("Send Amount: Applied Majority");
@@ -531,8 +528,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onCompleted();
         System.out.println("Receive Amount: Got Applied");
         // add to applied array of this send amount applied
-        if(receiveAmountAppliedCounter.get(request)!=null) receiveAmountAppliedCounter.put(request, receiveAmountAppliedCounter.get(request)+1);
-        else receiveAmountAppliedCounter.put(request, 1);
+        receiveAmountAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
         if(receiveAmountAppliedCounter.get(request)>=(Math.ceil(totalServers/2))) {
             System.out.println("Receive Amount: Applied Majority");
