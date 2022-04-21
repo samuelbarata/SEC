@@ -192,19 +192,18 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         // check if majority was achieved
         if(currentIntent.hasMajority(totalServers)) {
-            if(currentIntent.getMajority()==Bank.OpenAccountResponse.Status.SUCCESS) {
-                openAccountResponses.put(request.getTimestamp(), request.getOpenAccountResponse());
-                // if so, apply
+            openAccountResponses.put(request.getTimestamp(), request.getOpenAccountResponse());
+            // if so, apply
+            if(currentIntent.getMajority()==Bank.OpenAccountResponse.Status.SUCCESS)
                 openAccount(currentIntent.getRequest());
-                // send apply request to all other servers
-                SyncBanks.OpenAccountAppliedRequest.Builder appliedRequest = SyncBanks.OpenAccountAppliedRequest.newBuilder();
-                appliedRequest.setOpenAccountRequest(currentIntent.getRequest());
-                appliedRequest.setTimestamp(currentIntent.getTimestamp());
+            // send apply request to all other servers
+            SyncBanks.OpenAccountAppliedRequest.Builder appliedRequest = SyncBanks.OpenAccountAppliedRequest.newBuilder();
+            appliedRequest.setOpenAccountRequest(currentIntent.getRequest());
+            appliedRequest.setTimestamp(currentIntent.getTimestamp());
 
-                for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
-                {
-                    stub.openAccountApplied(appliedRequest.build());
-                }
+            for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+            {
+                stub.openAccountApplied(appliedRequest.build());
             }
         }
     }
@@ -334,19 +333,18 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         // check if majority was achieved
         if(currentIntent.hasMajority(totalServers)) {
-            if(currentIntent.getMajority()==Bank.SendAmountResponse.Status.SUCCESS) {
-                sendAmountResponses.put(request.getTimestamp(), request.getSendAmountResponse());
-                // if so, apply
+            sendAmountResponses.put(request.getTimestamp(), request.getSendAmountResponse());
+            // if so, apply
+            if(currentIntent.getMajority()==Bank.SendAmountResponse.Status.SUCCESS)
                 sendAmount(currentIntent.getRequest());
-                // send apply request to all other servers
-                SyncBanks.SendAmountAppliedRequest.Builder appliedRequest = SyncBanks.SendAmountAppliedRequest.newBuilder();
-                appliedRequest.setSendAmountRequest(currentIntent.getRequest());
-                appliedRequest.setTimestamp(currentIntent.getTimestamp());
+            // send apply request to all other servers
+            SyncBanks.SendAmountAppliedRequest.Builder appliedRequest = SyncBanks.SendAmountAppliedRequest.newBuilder();
+            appliedRequest.setSendAmountRequest(currentIntent.getRequest());
+            appliedRequest.setTimestamp(currentIntent.getTimestamp());
 
-                for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
-                {
-                    stub.sendAmountApplied(appliedRequest.build());
-                }
+            for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+            {
+                stub.sendAmountApplied(appliedRequest.build());
             }
         }
     }
@@ -481,19 +479,18 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         // check if majority was achieved
         if(currentIntent.hasMajority(totalServers)) {
-            if(currentIntent.getMajority()==Bank.ReceiveAmountResponse.Status.SUCCESS) {
-                receiveAmountResponses.put(request.getTimestamp(), request.getReceiveAmountResponse());
-                // if so, apply
+            receiveAmountResponses.put(request.getTimestamp(), request.getReceiveAmountResponse());
+            // if so, apply
+            if(currentIntent.getMajority()==Bank.ReceiveAmountResponse.Status.SUCCESS)
                 receiveAmount(currentIntent.getRequest());
-                // send apply request to all other servers
-                SyncBanks.ReceiveAmountAppliedRequest.Builder appliedRequest = SyncBanks.ReceiveAmountAppliedRequest.newBuilder();
-                appliedRequest.setReceiveAmountRequest(currentIntent.getRequest());
-                appliedRequest.setTimestamp(currentIntent.getTimestamp());
+            // send apply request to all other servers
+            SyncBanks.ReceiveAmountAppliedRequest.Builder appliedRequest = SyncBanks.ReceiveAmountAppliedRequest.newBuilder();
+            appliedRequest.setReceiveAmountRequest(currentIntent.getRequest());
+            appliedRequest.setTimestamp(currentIntent.getTimestamp());
 
-                for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
-                {
-                    stub.receiveAmountApplied(appliedRequest.build());
-                }
+            for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+            {
+                stub.receiveAmountApplied(appliedRequest.build());
             }
         }
     }
@@ -589,6 +586,10 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
                     }
                     break;
                 case INVALID_MESSAGE_FORMAT:
+                    SyncResponse.setCheckAccountResponse(response.build());
+                    SyncResponse.setTimestamp(timestamp);
+                    responseObserver.onNext(SyncResponse.build());
+                    responseObserver.onCompleted();
                     return;
             }
 
@@ -692,6 +693,10 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
                     }
                     break;
                 case INVALID_MESSAGE_FORMAT:
+                    SyncResponse.setAuditResponse(response.build());
+                    SyncResponse.setTimestamp(timestamp);
+                    responseObserver.onNext(SyncResponse.build());
+                    responseObserver.onCompleted();
                     return;
             }
 
