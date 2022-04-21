@@ -39,10 +39,10 @@ public class KeyManager {
 
         try (FileInputStream keyStoreData = new FileInputStream(keyStoreFile)) {
             // open existing keystore
-            logger.info("Importing KeyStore");
+            logger.info("Importing Existing KeyStore");
             try {
                 keystore.load(keyStoreData, keyStorePassword);
-                loadNewKey = keystore.containsAlias(alias);
+                loadNewKey = !keystore.containsAlias(alias);
             } catch (NoSuchAlgorithmException | CertificateException | KeyStoreException e1) {
                 logger.error("KeyStoreException {}:", e1.getMessage());
                 e1.printStackTrace();
