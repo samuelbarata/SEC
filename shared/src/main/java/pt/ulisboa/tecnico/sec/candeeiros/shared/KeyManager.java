@@ -22,49 +22,55 @@ public class KeyManager {
     private final char[] keyPassword;
     private final char[] keyStorePassword;
 
-    public KeyManager(String keyFile, String keyStoreFile ,char[] keyPassword, char[] keyStorePassword, String alias, String certFile) throws FileNotFoundException, IOException {
+    public KeyManager(String keyFile, String keyStoreFile, char[] keyPassword, char[] keyStorePassword, String alias,
+            String certFile) throws FileNotFoundException, IOException {
         try {
             keystore = KeyStore.getInstance(KeyStore.getDefaultType());
         } catch (KeyStoreException e1) {
             logger.error("KeyStoreException {}:", e1.getMessage());
-			e1.printStackTrace();
-			System.exit(1);
+            e1.printStackTrace();
+            System.exit(1);
         }
         this.keyPassword = keyPassword;
         this.keyStorePassword = keyStorePassword;
         this.alias = alias;
         this.keyStoreFile = keyStoreFile;
+        boolean loadNewKey = false;
 
-        try(FileInputStream keyStoreData = new FileInputStream(keyStoreFile)){
-            //open existing keystore
+        try (FileInputStream keyStoreData = new FileInputStream(keyStoreFile)) {
+            // open existing keystore
             logger.info("Importing KeyStore");
             try {
                 keystore.load(keyStoreData, keyStorePassword);
-            } catch (NoSuchAlgorithmException | CertificateException e1) {
+                loadNewKey = keystore.containsAlias(alias);
+            } catch (NoSuchAlgorithmException | CertificateException | KeyStoreException e1) {
                 logger.error("KeyStoreException {}:", e1.getMessage());
                 e1.printStackTrace();
                 System.exit(1);
-            }  
+            }
         } catch (IOException e) {
-            //importing new keypair
-            logger.info("importing new RSA key pair");
+            // importing new keypair
+            logger.info("Creating new KeyStore");
             try {
                 keystore.load(null, keyStorePassword);
+                loadNewKey = true;
             } catch (NoSuchAlgorithmException | CertificateException | IOException e1) {
                 logger.error("KeyStoreException {}:", e1.getMessage());
                 e1.printStackTrace();
                 System.exit(1);
             }
-
+        }
+        if (loadNewKey) {
+            logger.info("importing new RSA key pair into KeyStore");
             PrivateKey pk = (PrivateKey) Crypto.privateKeyFromFileOrExit(keyFile);
-            
+
             X509Certificate cert = Crypto.readCertOrExit(certFile);
 
             ProtectionParameter pp = new PasswordProtection(keyPassword);
 
-            Certificate[] chain = {(Certificate)cert};
+            Certificate[] chain = { (Certificate) cert };
 
-            PrivateKeyEntry privKeyEntry = new PrivateKeyEntry(pk,chain);
+            PrivateKeyEntry privKeyEntry = new PrivateKeyEntry(pk, chain);
             try {
                 keystore.setEntry(alias, privKeyEntry, pp);
             } catch (KeyStoreException e1) {
@@ -72,23 +78,20 @@ public class KeyManager {
                 e1.printStackTrace();
                 System.exit(1);
             }
-            
             saveKeystore();
         }
     }
 
-    private void saveKeystore() throws FileNotFoundException, IOException{
+    private void saveKeystore() throws FileNotFoundException, IOException {
         logger.info("Saving KeyStore");
-        try (FileOutputStream keyStoreOutputStream = new FileOutputStream(keyStoreFile)) {  
+        try (FileOutputStream keyStoreOutputStream = new FileOutputStream(keyStoreFile)) {
             try {
                 keystore.store(keyStoreOutputStream, keyStorePassword);
-            }
-            catch (NoSuchAlgorithmException nsae) {
+            } catch (NoSuchAlgorithmException nsae) {
                 logger.error("Unreachable Block. No such algorithm {}:", nsae.getMessage());
                 nsae.printStackTrace();
                 System.exit(1);
-            }
-            catch (CertificateException cee) {
+            } catch (CertificateException cee) {
                 logger.error("Certificate Exception {}:", cee.getMessage());
                 cee.printStackTrace();
                 System.exit(1);
@@ -100,7 +103,7 @@ public class KeyManager {
         }
     }
 
-    public PrivateKey getKey(){
+    public PrivateKey getKey() {
         try {
             return (PrivateKey) keystore.getKey(alias, keyPassword);
         } catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
@@ -108,8 +111,7 @@ public class KeyManager {
             e.printStackTrace();
             System.exit(1);
             // For the compiler
-			return null;
+            return null;
         }
     }
-
 }
