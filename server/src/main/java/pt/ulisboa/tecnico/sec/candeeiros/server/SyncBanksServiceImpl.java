@@ -42,6 +42,11 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     private final HashMap<Integer, Bank.SendAmountResponse> sendAmountResponses;
     private HashMap<SyncBanks.SendAmountAppliedRequest, Integer> sendAmountAppliedCounter;
 
+    //Receive Amount Storages
+    private final HashMap<Integer, receiveAmountIntent> receiveAmountIntents;
+    private final HashMap<Integer, Bank.ReceiveAmountResponse> receiveAmountResponses;
+    private HashMap<SyncBanks.ReceiveAmountAppliedRequest, Integer> receiveAmountAppliedCounter;
+
     //Communication between SyncBanks
     private List<String> SyncBanksTargets;
     private ArrayList<ManagedChannel> SyncBanksManagedChannels;
@@ -70,6 +75,9 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         this.sendAmountIntents = new HashMap<>();
         this.sendAmountResponses = new HashMap<>();
 
+        this.receiveAmountIntents = new HashMap<>();
+        this.receiveAmountResponses = new HashMap<>();
+
         this.SyncBanksManagedChannels = new ArrayList<>();
         this.SyncBanksTargets = new ArrayList<>();
         this.SyncBanksTargets.add(bankTarget);
@@ -77,6 +85,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         this.openAppliedCounter = new HashMap<>();
         this.sendAmountAppliedCounter = new HashMap<>();
+        this.receiveAmountAppliedCounter = new HashMap<>();
 
         this.totalServers = totalServers;
         this.keyManager = keyManager;
@@ -365,6 +374,151 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     }
 
     // ***** Receive Amount
+    public Bank.ReceiveAmountResponse receiveAmountResponseBuilder(Bank.ReceiveAmountResponse.Status status) {
+        Bank.ReceiveAmountResponse.Builder request = Bank.ReceiveAmountResponse.newBuilder();
+        request.setStatus(status);
+
+        return request.build();
+    }
+
+
+    private Bank.ReceiveAmountResponse.Status receiveAmountStatus(Bank.ReceiveAmountRequest request) {
+        try {
+            if (!request.hasNonce() || !request.hasSignature() || !request.hasTransaction() ||
+                    !request.getTransaction().hasSourcePublicKey() || !request.getTransaction().hasDestinationPublicKey())
+                return Bank.ReceiveAmountResponse.Status.INVALID_MESSAGE_FORMAT;
+
+            PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+            PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
+
+            if (!Signatures.verifyReceiveAmountRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), destinationKey,
+                    request.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray(),
+                    request.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray(),
+                    request.getTransaction().getAmount(),
+                    request.getNonce().getNonceBytes().toByteArray(),
+                    request.getAccept()
+            ))
+                return Bank.ReceiveAmountResponse.Status.INVALID_SIGNATURE;
+
+            if (!bank.accountExists(destinationKey))
+                return Bank.ReceiveAmountResponse.Status.INVALID_KEY;
+            BankAccount destinationAccount = bank.getAccount(destinationKey);
+            BigDecimal amount = new BigDecimal(request.getTransaction().getAmount());
+            if (!destinationAccount.getTransactionQueue().contains(new Transaction(sourceKey, destinationKey, amount)))
+                return Bank.ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION;
+            if (!destinationAccount.getNonce().nextNonce().equals(Nonce.decode(request.getNonce())))
+                return Bank.ReceiveAmountResponse.Status.INVALID_NONCE;
+            return Bank.ReceiveAmountResponse.Status.SUCCESS;
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+            return Bank.ReceiveAmountResponse.Status.INVALID_KEY_FORMAT;
+        } catch (NumberFormatException e) {
+            return Bank.ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION;
+        }
+    }
+
+    public void receiveAmount(Bank.ReceiveAmountRequest request) {
+        PublicKey destinationKey = null;
+        PublicKey sourceKey = null;
+        try {
+            sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
+            destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+        } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+            // Should never happen
+            e.printStackTrace();
+        }
+        BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
+        Nonce nonce = Nonce.decode(request.getNonce());
+        byte[] signature = request.getSignature().getSignatureBytes().toByteArray();
+
+        if (request.getAccept()) {
+            bank.acceptTransaction(sourceKey, destinationKey, amount, nonce, signature);
+
+            logger.info("Applied transaction: {} -> {} (amount: {})",
+                    Crypto.keyAsShortString(sourceKey),
+                    Crypto.keyAsShortString(destinationKey),
+                    amount);
+        } else {
+            bank.rejectTransaction(sourceKey, destinationKey, amount, nonce, signature);
+
+            logger.info("Rejected transaction: {} -> {} (amount: {})",
+                    Crypto.keyAsShortString(sourceKey),
+                    Crypto.keyAsShortString(destinationKey),
+                    amount);
+        }
+    }
+
+    @Override
+    public void receiveAmountIntent(SyncBanks.ReceiveAmountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
+        responseObserver.onNext(buildAck());
+        responseObserver.onCompleted();
+
+        // receive intent to send amount
+        receiveAmountIntents.put(request.getTimestamp(), new receiveAmountIntent(request.getTimestamp(), request.getReceiveAmountRequest()));
+
+        // check status if money can be received
+        Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request.getReceiveAmountRequest());
+
+        // send status to all other servers
+        SyncBanks.ReceiveAmountStatusRequest.Builder statusRequest = SyncBanks.ReceiveAmountStatusRequest.newBuilder();
+        statusRequest.setReceiveAmountRequest(request.getReceiveAmountRequest());
+        statusRequest.setReceiveAmountResponse(receiveAmountResponseBuilder(status));
+        statusRequest.setTimestamp(request.getTimestamp());
+
+        for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+        {
+            stub.receiveAmountStatus(statusRequest.build());
+        }
+    }
+
+    @Override
+    public void receiveAmountStatus(SyncBanks.ReceiveAmountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
+        responseObserver.onNext(buildAck());
+        responseObserver.onCompleted();
+
+        System.out.println("Receive Amount: Got Status");
+        receiveAmountIntent currentIntent = receiveAmountIntents.get(request.getTimestamp());
+        //TODO what if the currentIntent is null/doesn't exist?
+
+        // add to status array of this receive amount intent
+        currentIntent.addStatus(request.getReceiveAmountResponse().getStatus());
+
+        // check if majority was achieved
+        if(currentIntent.hasMajority(totalServers)) {
+            if(currentIntent.getMajority()==Bank.ReceiveAmountResponse.Status.SUCCESS) {
+                receiveAmountResponses.put(request.getTimestamp(), request.getReceiveAmountResponse());
+                // if so, apply
+                receiveAmount(currentIntent.getRequest());
+                // send apply request to all other servers
+                SyncBanks.ReceiveAmountAppliedRequest.Builder appliedRequest = SyncBanks.ReceiveAmountAppliedRequest.newBuilder();
+                appliedRequest.setReceiveAmountRequest(currentIntent.getRequest());
+                appliedRequest.setTimestamp(currentIntent.getTimestamp());
+
+                for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+                {
+                    stub.receiveAmountApplied(appliedRequest.build());
+                }
+            }
+        }
+    }
+
+    @Override
+    public void receiveAmountApplied(SyncBanks.ReceiveAmountAppliedRequest request, StreamObserver<Bank.Ack> responseObserver) {
+        responseObserver.onNext(buildAck());
+        responseObserver.onCompleted();
+        System.out.println("Receive Amount: Got Applied");
+        // add to applied array of this send amount applied
+        if(receiveAmountAppliedCounter.get(request)!=null) receiveAmountAppliedCounter.put(request, receiveAmountAppliedCounter.get(request)+1);
+        else receiveAmountAppliedCounter.put(request, 1);
+        // check if majority was achieved
+        if(receiveAmountAppliedCounter.get(request)>=(Math.ceil(totalServers/2))) {
+            System.out.println("Receive Amount: Applied Majority");
+            // if so, send to client the requests result
+            Bank.ReceiveAmountSync.Builder syncResponse = Bank.ReceiveAmountSync.newBuilder();
+            syncResponse.setReceiveAmountResponse(receiveAmountResponses.get(request.getTimestamp()));
+            syncResponse.setTimestamp(request.getTimestamp());
+            BankStub.receiveAmountSyncRequest(syncResponse.build());
+        }
+    }
 
     // ***** Check Account
     private Bank.CheckAccountResponse.Status checkAccountStatus(Bank.CheckAccountRequest request) {
