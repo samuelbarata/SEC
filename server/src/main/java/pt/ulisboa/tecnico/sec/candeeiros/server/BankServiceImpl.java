@@ -625,7 +625,12 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void audit(Bank.AuditRequest request, StreamObserver<Bank.AuditResponse> responseObserver) {
-		synchronized (bank) {
+		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+		{
+			responseObserver.onNext(stub.audit(request));
+			responseObserver.onCompleted();
+		}
+		/*synchronized (bank) {
 			Bank.AuditResponse.Status status = auditStatus(request);
 
 			logger.info("Got request to audit account. Status {}", status.name());
@@ -690,6 +695,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
-		}
+		}*/
 	}
 }

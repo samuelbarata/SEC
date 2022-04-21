@@ -57,9 +57,6 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     private ManagedChannel BankManagedChannel;
     private BankServiceGrpc.BankServiceBlockingStub BankStub;
 
-    //Applied HashMaps
-
-
     //***
     private int totalServers;
 
@@ -612,6 +609,107 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
             }
 
             SyncResponse.setCheckAccountResponse(response.build());
+            SyncResponse.setTimestamp(timestamp);
+            responseObserver.onNext(SyncResponse.build());
+            responseObserver.onCompleted();
+        }
+    }
+    //***** Audit
+
+    private Bank.AuditResponse.Status auditStatus(Bank.AuditRequest request) {
+        try {
+            if (!request.hasChallengeNonce() || !request.hasPublicKey())
+                return Bank.AuditResponse.Status.INVALID_MESSAGE_FORMAT;
+
+            PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
+            if (!bank.accountExists(key))
+                return Bank.AuditResponse.Status.INVALID_KEY;
+            return Bank.AuditResponse.Status.SUCCESS;
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            return Bank.AuditResponse.Status.INVALID_KEY_FORMAT;
+        }
+    }
+
+    @Override
+    public void audit(Bank.AuditRequest request, StreamObserver<Bank.AuditResponse> responseObserver) {
+        AuditIntent intent = new AuditIntent();
+        for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
+            // request all values from all servers
+            SyncBanks.AuditSyncResponse responseSync = stub.auditSync(request);
+            if (intent.addResponse(responseSync.getTimestamp(), responseSync.getAuditResponse(), totalServers)) {
+                responseObserver.onNext(intent.getMajority());
+                responseObserver.onCompleted();
+            }
+        }
+    }
+
+    @Override
+    public void auditSync(Bank.AuditRequest request, StreamObserver<SyncBanks.AuditSyncResponse> responseObserver) {
+        SyncBanks.AuditSyncResponse.Builder SyncResponse = SyncBanks.AuditSyncResponse.newBuilder();
+        Bank.AuditResponse.Builder response = Bank.AuditResponse.newBuilder();
+
+        synchronized (bank) {
+            Bank.AuditResponse.Status status = auditStatus(request);
+
+            logger.info("Got request to audit account. Status {}", status.name());
+
+            response = Bank.AuditResponse.newBuilder().setStatus(status);
+
+            switch (status) {
+                case SUCCESS:
+                    PublicKey key = null;
+                    try {
+                        key = Crypto.decodePublicKey(request.getPublicKey());
+                    } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+                        // This should not happen
+                        e.printStackTrace();
+                    }
+
+                    BankAccount account = bank.getAccount(key);
+
+
+                    for (Transaction t : account.getTransactionHistory()) {
+                        Bank.NonRepudiableTransaction transaction = Bank.NonRepudiableTransaction.newBuilder()
+                                .setTransaction(
+                                        Bank.Transaction.newBuilder()
+                                                .setAmount(t.getAmount().toString())
+                                                .setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
+                                                .setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+                                                .build()
+                                )
+                                .setSourceNonce(t.getSourceNonce().encode())
+                                .setDestinationNonce(t.getDestinationNonce().encode())
+                                .setSourceSignature(Bank.Signature.newBuilder()
+                                        .setSignatureBytes(ByteString.copyFrom(t.getSourceSignature()))
+                                        .build()
+                                )
+                                .setDestinationSignature(Bank.Signature.newBuilder()
+                                        .setSignatureBytes(ByteString.copyFrom(t.getDestinationSignature()))
+                                        .build()
+                                )
+                                .build();
+                        response.addTransactions(transaction);
+                    }
+                    break;
+                case INVALID_MESSAGE_FORMAT:
+                    return;
+            }
+
+            try {
+                response.setChallengeNonce(request.getChallengeNonce())
+                        .setSignature(Bank.Signature.newBuilder()
+                                .setSignatureBytes(ByteString.copyFrom(Signatures.signAuditResponse(keyManager.getKey(),
+                                        request.getChallengeNonce().getNonceBytes().toByteArray(),
+                                        response.getStatus().name(),
+                                        response.getTransactionsList()
+                                )))
+                                .build());
+            } catch (SignatureException | InvalidKeyException e) {
+                // should never happen
+                e.printStackTrace();
+            }
+
+            SyncResponse.setAuditResponse(response.build());
             SyncResponse.setTimestamp(timestamp);
             responseObserver.onNext(SyncResponse.build());
             responseObserver.onCompleted();
