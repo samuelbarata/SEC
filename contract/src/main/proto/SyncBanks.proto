@@ -105,7 +105,8 @@ service SyncBanksService {
 
 	rpc NonceNegotiation(NonceNegotiationRequest) returns (NonceNegotiationResponse);
 
-	rpc CheckAccount(CheckAccountRequest) returns (CheckAccountSyncResponse);
+	rpc CheckAccount(CheckAccountRequest) returns (CheckAccountResponse);
+	rpc CheckAccountSync(CheckAccountRequest) returns (CheckAccountSyncResponse);
 
 	rpc Audit(AuditRequest) returns (AuditSyncResponse);
 }

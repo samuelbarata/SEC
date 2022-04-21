@@ -86,7 +86,11 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			timestamp++;
 			System.out.println("Start wait");
 			while (OpenAccountResponses.get(currentTS)==null) {
-
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}
 			Bank.OpenAccountResponse responseSync = OpenAccountResponses.get(currentTS);
 			Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder().setStatus(responseSync.getStatus());
@@ -434,7 +438,14 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void checkAccount(Bank.CheckAccountRequest request, StreamObserver<Bank.CheckAccountResponse> responseObserver) {
-		synchronized (bank) {
+
+		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+		{
+			responseObserver.onNext(stub.checkAccount(request));
+			responseObserver.onCompleted();
+		}
+
+		/*synchronized (bank) {
 			Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
 			logger.info("Got check account. Status: {}", status);
 
@@ -498,7 +509,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
-		}
+		}*/
 	}
 
 

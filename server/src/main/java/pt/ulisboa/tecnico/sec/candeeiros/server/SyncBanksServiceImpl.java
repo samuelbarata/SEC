@@ -1,5 +1,6 @@
 package pt.ulisboa.tecnico.sec.candeeiros.server;
 
+import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -9,16 +10,13 @@ import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
 import pt.ulisboa.tecnico.sec.candeeiros.SyncBanks;
 import pt.ulisboa.tecnico.sec.candeeiros.SyncBanksServiceGrpc;
-import pt.ulisboa.tecnico.sec.candeeiros.server.model.BftBank;
-import pt.ulisboa.tecnico.sec.candeeiros.server.model.openAccountIntent;
+import pt.ulisboa.tecnico.sec.candeeiros.server.model.*;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.KeyManager;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Signatures;
 
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
+import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -207,6 +205,103 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
             syncResponse.setOpenAccountResponse(openAccountResponses.get(request.getTimestamp()));
             syncResponse.setTimestamp(request.getTimestamp());
             BankStub.openAccountSyncRequest(syncResponse.build());
+        }
+    }
+
+    private Bank.CheckAccountResponse.Status checkAccountStatus(Bank.CheckAccountRequest request) {
+        try {
+            if (!request.hasChallengeNonce() || !request.hasPublicKey())
+                return Bank.CheckAccountResponse.Status.INVALID_MESSAGE_FORMAT;
+
+            PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
+            if (!bank.accountExists(key))
+                return Bank.CheckAccountResponse.Status.INVALID_KEY;
+            return Bank.CheckAccountResponse.Status.SUCCESS;
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            return Bank.CheckAccountResponse.Status.INVALID_KEY_FORMAT;
+        }
+    }
+
+    @Override
+    public void checkAccount(Bank.CheckAccountRequest request, StreamObserver<Bank.CheckAccountResponse> responseObserver) {
+        CheckAccountIntent intent = new CheckAccountIntent();
+        for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
+            // request all values from all servers
+            SyncBanks.CheckAccountSyncResponse responseSync = stub.checkAccountSync(request);
+            if (intent.addResponse(responseSync.getTimestamp(), responseSync.getCheckAccountResponse(), totalServers)) {
+                responseObserver.onNext(intent.getMajority());
+                responseObserver.onCompleted();
+            }
+        }
+    }
+
+    @Override
+    public void checkAccountSync(Bank.CheckAccountRequest request, StreamObserver<SyncBanks.CheckAccountSyncResponse> responseObserver) {
+        SyncBanks.CheckAccountSyncResponse.Builder SyncResponse = SyncBanks.CheckAccountSyncResponse.newBuilder();
+        Bank.CheckAccountResponse.Builder response = Bank.CheckAccountResponse.newBuilder();
+
+        synchronized (bank) {
+            Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
+            logger.info("Got check account. Status: {}", status);
+
+            response.setStatus(status);
+
+            switch (status) {
+                case SUCCESS:
+                    PublicKey key = null;
+                    try {
+                        key = Crypto.decodePublicKey(request.getPublicKey());
+                    } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+                        // This should not happen
+                        e.printStackTrace();
+                    }
+
+                    BankAccount account = bank.getAccount(key);
+                    response.setBalance(account.getBalance().toString());
+
+                    for (Transaction t : account.getTransactionQueue()) {
+
+                        Bank.NonRepudiableTransaction transaction = Bank.NonRepudiableTransaction.newBuilder()
+                                .setTransaction(
+                                        Bank.Transaction.newBuilder()
+                                                .setAmount(t.getAmount().toString())
+                                                .setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
+                                                .setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+                                                .build()
+                                )
+                                .setSourceNonce(t.getSourceNonce().encode())
+                                .setSourceSignature(Bank.Signature.newBuilder()
+                                        .setSignatureBytes(ByteString.copyFrom(t.getSourceSignature()))
+                                        .build()
+                                )
+                                .build();
+                        response.addTransactions(transaction);
+                    }
+                    break;
+                case INVALID_MESSAGE_FORMAT:
+                    return;
+            }
+
+
+            try {
+                response.setChallengeNonce(request.getChallengeNonce())
+                        .setSignature(Bank.Signature.newBuilder()
+                                .setSignatureBytes(ByteString.copyFrom(Signatures.signCheckAccountResponse(keyManager.getKey(),
+                                        request.getChallengeNonce().getNonceBytes().toByteArray(),
+                                        response.getStatus().name(),
+                                        response.getBalance(),
+                                        response.getTransactionsList()
+                                )))
+                                .build());
+            } catch (SignatureException | InvalidKeyException e) {
+                // Should never happen
+                e.printStackTrace();
+            }
+
+            SyncResponse.setCheckAccountResponse(response.build());
+            SyncResponse.setTimestamp(timestamp);
+            responseObserver.onNext(SyncResponse.build());
+            responseObserver.onCompleted();
         }
     }
 }
