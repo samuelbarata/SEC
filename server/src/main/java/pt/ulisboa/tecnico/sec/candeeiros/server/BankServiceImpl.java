@@ -1,10 +1,14 @@
 package pt.ulisboa.tecnico.sec.candeeiros.server;
 
 import com.google.protobuf.ByteString;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
+import pt.ulisboa.tecnico.sec.candeeiros.SyncBanks;
+import pt.ulisboa.tecnico.sec.candeeiros.SyncBanksServiceGrpc;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.BankAccount;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.Transaction;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
@@ -19,51 +23,58 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
 	private final BftBank bank;
 	private final KeyManager keyManager;
+	private List<String> SyncBanksTargets;
+
+	private ArrayList<ManagedChannel> SyncBanksManagedChannels;
+	private ArrayList<SyncBanksServiceGrpc.SyncBanksServiceBlockingStub> SyncBanksStubs;
+
 
 	public BankServiceImpl(String ledgerFileName, KeyManager keyManager) throws IOException {
 		super();
 		bank = new BftBank(ledgerFileName);
-
 		this.keyManager = keyManager;
+		this.SyncBanksManagedChannels = new ArrayList<>();
+		this.SyncBanksTargets = new ArrayList<>();
+		this.SyncBanksStubs = new ArrayList<>();
 	}
 
-	// ***** Authenticated procedures *****
-	private Bank.OpenAccountResponse.Status openAccountStatus(Bank.OpenAccountRequest request) {
-		try {
-			if (!request.hasSignature() || !request.hasChallengeNonce() || !request.hasPublicKey())
-				return Bank.OpenAccountResponse.Status.INVALID_MESSAGE_FORMAT;
-
-			if (!Signatures.verifyOpenAccountRequestSignature(
-					request.getSignature().getSignatureBytes().toByteArray(),
-					Crypto.decodePublicKey(request.getPublicKey()),
-					request.getChallengeNonce().getNonceBytes().toByteArray(),
-					request.getPublicKey().getKeyBytes().toByteArray()
-			))
-				return Bank.OpenAccountResponse.Status.INVALID_SIGNATURE;
-
-			PublicKey publicKey = Crypto.decodePublicKey(request.getPublicKey());
-			if (bank.accountExists(publicKey))
-				return Bank.OpenAccountResponse.Status.ALREADY_EXISTED;
-			return Bank.OpenAccountResponse.Status.SUCCESS;
-		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-			return Bank.OpenAccountResponse.Status.KEY_FAILURE;
+	public void CreateStubs()
+	{
+		ManagedChannel channel;
+		for(String target: SyncBanksTargets)
+		{
+			channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
+			SyncBanksManagedChannels.add(channel);
+			SyncBanksStubs.add(SyncBanksServiceGrpc.newBlockingStub(channel));
 		}
 	}
 
+	// ***** Authenticated procedures *****
+
 	@Override
-	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.OpenAccountResponse> responseObserver) {
+	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.Ack> responseObserver) {
 		synchronized (bank) {
-			Bank.OpenAccountResponse.Status status = openAccountStatus(request);
+
+			SyncBanks.OpenAccountIntentRequest.Builder intentRequest = SyncBanks.OpenAccountIntentRequest.newBuilder();
+			intentRequest.setOpenAccountRequest(request);
+			// send intents to all servers
+			for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+			{
+				stub.openAccountIntent(intentRequest.build());
+			}
+			
+			
+			/*Bank.OpenAccountResponse.Status status = openAccountStatus(request);
 
 			logger.info("Got request to open account. Status: {}", status);
 
@@ -101,11 +112,16 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 				e.printStackTrace();
 			}
 			responseObserver.onNext(response.build());
-			responseObserver.onCompleted();
+			responseObserver.onCompleted();*/
 		}
 	}
 
+	@Override
+	public void openAccountResult(Bank.OpenAccountResponse request, StreamObserver<Bank.Ack> responseObserver) {
+		// receive result of open account
 
+		// send result to client
+	}
 
 	private Bank.NonceNegotiationResponse.Status nonceNegotiationStatus(Bank.NonceNegotiationRequest request) {
 		try {

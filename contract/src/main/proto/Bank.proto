@@ -32,6 +32,11 @@ message NonRepudiableTransaction {
 
 
 // ***** Authenticated procedures *****
+message Ack {
+	Nonce challengeNonce = 1;
+	Signature signature = 2;
+}
+
 message OpenAccountRequest {
 	Nonce challengeNonce = 1;
 	PublicKey publicKey = 2;
@@ -162,7 +167,8 @@ message AuditResponse {
 
 // ***** Bank Service
 service BankService {
-	rpc OpenAccount(OpenAccountRequest) returns (OpenAccountResponse);
+	rpc OpenAccount(OpenAccountRequest) returns (Ack);
+	rpc OpenAccountResult(OpenAccountResponse) returns (Ack);
 	rpc NonceNegotiation(NonceNegotiationRequest) returns (NonceNegotiationResponse);
 	rpc SendAmount(SendAmountRequest) returns (SendAmountResponse);
 	rpc ReceiveAmount(ReceiveAmountRequest) returns (ReceiveAmountResponse);

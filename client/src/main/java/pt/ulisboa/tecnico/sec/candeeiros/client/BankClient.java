@@ -45,7 +45,7 @@ public class BankClient {
                         .build())
                 .build();
 
-        Bank.OpenAccountResponse response = stub.openAccount(request);
+        Bank.Ack response = stub.openAccount(request);
 
         if (response.getStatus() == Bank.OpenAccountResponse.Status.INVALID_MESSAGE_FORMAT)
             return response;

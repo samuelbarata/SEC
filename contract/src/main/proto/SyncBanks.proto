@@ -4,65 +4,70 @@ import "Bank.proto";
 
 
 // ***** Authenticated procedures *****
-message Ack {
-    Nonce challengeNonce = 1;
-    Signature signature = 2;
-}
 message OpenAccountIntentRequest {
     OpenAccountRequest openAccountRequest = 1;
     Nonce challengeNonce = 2;
-    Signature signature = 3;
+    int32 timestamp = 3;
+    Signature signature = 4;
 }
 
 message OpenAccountStatusRequest {
     OpenAccountRequest openAccountRequest = 1;
     OpenAccountResponse openAccountResponse = 2;
     Nonce challengeNonce = 3;
-    Signature signature = 4;
+    int32 timestamp = 4;
+    Signature signature = 5;
 }
 
 message OpenAccountAppliedRequest {
     OpenAccountRequest openAccountRequest = 1;
     Nonce challengeNonce = 2;
-    Signature signature = 3;
+    int32 timestamp = 3;
+    Signature signature = 4;
 }
 
 message SendAmountIntentRequest {
     SendAmountRequest sendAmountRequest = 1;
     Nonce challengeNonce = 2;
-    Signature signature = 3;
+    int32 timestamp = 3;
+    Signature signature = 4;
 }
 
 message SendAmountStatusRequest {
     SendAmountRequest sendAmountRequest = 1;
     SendAmountResponse sendAmountResponse = 2;
     Nonce challengeNonce = 3;
-    Signature signature = 4;
+    int32 timestamp = 4;
+    Signature signature = 5;
 }
 
 message SendAmountAppliedRequest {
     SendAmountRequest sendAmountRequest = 1;
     Nonce challengeNonce = 2;
-    Signature signature = 3;
+    int32 timestamp = 3;
+    Signature signature = 4;
 }
 
 message ReceiveAmountIntentRequest {
     ReceiveAmountRequest receiveAmountRequest = 1;
     Nonce challengeNonce = 2;
-    Signature signature = 3;
+    int32 timestamp = 3;
+    Signature signature = 4;
 }
 
 message ReceiveAmountStatusRequest {
     ReceiveAmountRequest receiveAmountRequest = 1;
     ReceiveAmountResponse receiveAmountResponse = 2;
     Nonce challengeNonce = 3;
-    Signature signature = 4;
+    int32 timestamp = 4;
+    Signature signature = 5;
 }
 
 message ReceiveAmountAppliedRequest {
     ReceiveAmountRequest receiveAmountRequest = 1;
     Nonce challengeNonce = 2;
-    Signature signature = 3;
+    int32 timestamp = 3;
+    Signature signature = 4;
 }
 
 
@@ -70,13 +75,13 @@ message ReceiveAmountAppliedRequest {
 
 message CheckAccountSyncResponse {
 	CheckAccountResponse checkAccountResponse = 1;
-	string timestamp = 2;
+  int32 timestamp = 2;
 	Signature signature = 3;
 }
 
 message AuditSyncResponse {
 	AuditResponse auditResponse = 1;
-	string timestamp = 2;
+  int32 timestamp = 2;
 	Signature signature = 3;
 }
 
