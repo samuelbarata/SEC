@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
+import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedAuthenticationException;
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedChallengeException;
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.WrongNonceException;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
@@ -22,34 +23,34 @@ public class InteractiveClient {
     private final BankClient client;
     private Nonce nonce = null;
 
-    public InteractiveClient(String target, String privateKeyFile, String publicKeyFile) {
+    public InteractiveClient(String target, String privateKeyFile, String publicKeyFile, String serverPublicKeyFile) {
         this.target = target;
         this.publicKey = (PublicKey) Crypto.readKeyOrExit(publicKeyFile, "pub");
         this.privateKey = (PrivateKey) Crypto.readKeyOrExit(privateKeyFile, "private");
-        client = new BankClient(target);
+        client = new BankClient(target, (PublicKey) Crypto.readKeyOrExit(serverPublicKeyFile, "pub"));
     }
 
-    private void negotiateNonce() throws FailedChallengeException {
+    private void negotiateNonce() throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
         if (nonce != null)
             return;
-        Bank.NonceNegotiationResponse response = client.nonceNegotiation(publicKey);
+        Bank.NonceNegotiationResponse response = client.nonceNegotiation(privateKey, publicKey);
         nonce = Nonce.decode(response.getNonce());
     }
 
-    private Bank.OpenAccountResponse openAccount() throws FailedChallengeException {
-        Bank.OpenAccountResponse response = client.openAccount(publicKey);
+    private Bank.OpenAccountResponse openAccount() throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
+        Bank.OpenAccountResponse response = client.openAccount(privateKey, publicKey);
         negotiateNonce();
         return response;
     }
 
-    private Bank.SendAmountResponse sendAmount(PublicKey destination, String amount) throws WrongNonceException, FailedChallengeException {
+    private Bank.SendAmountResponse sendAmount(PublicKey destination, String amount) throws WrongNonceException, FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
         negotiateNonce();
-        Bank.SendAmountResponse response = client.sendAmount(publicKey, destination, amount, nonce);
+        Bank.SendAmountResponse response = client.sendAmount(privateKey, publicKey, destination, amount, nonce);
         nonce = Nonce.decode(response.getNonce());
         return response;
     }
 
-    private Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException {
+    private Bank.CheckAccountResponse checkAccount(PublicKey publicKey) throws FailedChallengeException, FailedAuthenticationException {
         Bank.CheckAccountResponse response = client.checkAccount(publicKey);
         return response;
     }
@@ -70,8 +71,18 @@ public class InteractiveClient {
                     return;
                 case "open_account":
                     try {
-                        openAccount();
+                        if (commandArgs.length != 1) {
+                            System.out.println("Wrong number of arguments");
+                        } else {
+                            openAccount();
+                        }
                     } catch (FailedChallengeException e) {
+                        e.printStackTrace();
+                    } catch (SignatureException e) {
+                        e.printStackTrace();
+                    } catch (InvalidKeyException e) {
+                        e.printStackTrace();
+                    } catch (FailedAuthenticationException e) {
                         e.printStackTrace();
                     }
                     break;
@@ -86,6 +97,12 @@ public class InteractiveClient {
                             e.printStackTrace();
                         } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
                             e.printStackTrace();
+                        } catch (SignatureException e) {
+                            e.printStackTrace();
+                        } catch (InvalidKeyException e) {
+                            e.printStackTrace();
+                        } catch (FailedAuthenticationException e) {
+                            e.printStackTrace();
                         }
                     }
                     break;
@@ -96,7 +113,7 @@ public class InteractiveClient {
                         try {
                             PublicKey account = (PublicKey) Crypto.readKey(commandArgs[1], "pub");
                             checkAccount(account);
-                        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | FailedChallengeException e) {
+                        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException | FailedChallengeException | FailedAuthenticationException e) {
                             e.printStackTrace();
                         }
                     }
@@ -124,8 +141,10 @@ public class InteractiveClient {
         String privateKeyFile = scan.nextLine();
         System.out.println("Enter public key file location: ");
         String publicKeyFile = scan.nextLine();
+        System.out.println("Enter server public key file location: ");
+        String serverPublicKeyFile = scan.nextLine();
 
-        InteractiveClient client = new InteractiveClient(target, privateKeyFile, publicKeyFile);
+        InteractiveClient client = new InteractiveClient(target, privateKeyFile, publicKeyFile, serverPublicKeyFile);
         client.run();
     }
 }
