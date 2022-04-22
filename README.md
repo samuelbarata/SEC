@@ -14,12 +14,14 @@ This is a gRPC application, composed of four modules:
 The project includes a makefile to simplify execution and testing:
 
  - Executing the server: `make server`
+ - Executing interactive client: `make client 1 4200`
  - Run Basic Usage Tests: `make test`
  - Run Byzantine Tests: `make test_byzantine`
  - Run Persistence Tests: `make test_persistence` (tests if server state is the expected state after basic tests and byzantine tests)
  - Run Crash Tests: `make test_crash` (assumes last line of ledger was corrupted)
  - Corrupt last line of ledger: `make corrupt_ledger`
  - Delete ledger: `make delete_ledger`
+ - Run DOS Tests: `make test_dos`
 
 The file `/server/server.ledger` will be created after the basic tests are ran.
 Do note that successive test runs might fail due to the server maintaining its state; for instance, createAccount might fail because the account already exists.
