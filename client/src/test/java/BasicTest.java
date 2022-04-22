@@ -3,12 +3,16 @@ import pt.ulisboa.tecnico.sec.candeeiros.Bank.*;
 import pt.ulisboa.tecnico.sec.candeeiros.client.BankClient;
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.*;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
+import pt.ulisboa.tecnico.sec.candeeiros.shared.KeyManager;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Signatures;
 
+import java.io.File;
+import java.io.IOException;
 import java.security.*;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,24 +22,40 @@ class BasicTest {
     private static BankClient client;
     private static PublicKey publicKey1, publicKey2, publicKey3, serverPublicKey;
     private static PrivateKey privateKey1, privateKey2, privateKey3;
+    private static ArrayList<KeyManager> km = new ArrayList<>();
     private static Nonce nonce1, nonce2;
+    private static String keyStoreFile = "testsKeyStore.ts";
 
     @BeforeAll
     static void startup() {
         String target = System.getProperty("target");
         serverPublicKey = (PublicKey) Crypto.readKeyOrExit(System.getProperty("serverPublicKey"), "pub");
         client = new BankClient(target, serverPublicKey);
-        publicKey1 = (PublicKey) Crypto.readKeyOrExit("./keys/1/id.pub", "pub");
-        publicKey2 = (PublicKey) Crypto.readKeyOrExit("./keys/2/id.pub", "pub");
-        publicKey3 = (PublicKey) Crypto.readKeyOrExit("./keys/3/id.pub", "pub");
-        privateKey1 = (PrivateKey) Crypto.readKeyOrExit("./keys/1/id", "private");
-        privateKey2 = (PrivateKey) Crypto.readKeyOrExit("./keys/2/id", "private");
-        privateKey3 = (PrivateKey) Crypto.readKeyOrExit("./keys/3/id", "private");
+        char[] keyStorePassword = "0".toCharArray();
+        char[] keyPassword = "0".toCharArray();
+
+        for (int i = 01; i < 9; i++) {
+            try {
+                km.add(new KeyManager("./keys/" + Integer.toString(i) + "/private_key.der", keyStoreFile, keyPassword,
+                        keyStorePassword,
+                        "testClient" + Integer.toString(i), "./keys/" + Integer.toString(i) + "/certificate.crt"));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        publicKey1 = km.get(0).getPublicKey();
+        publicKey2 = km.get(1).getPublicKey();
+        publicKey3 = km.get(2).getPublicKey();
+        privateKey1 = km.get(0).getKey();
+        privateKey2 = km.get(1).getKey();
+        privateKey3 = km.get(2).getKey();
     }
 
     @Test
     @Order(1)
-    void createAccountTest() throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
+    void createAccountTest()
+            throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
 
@@ -54,7 +74,8 @@ class BasicTest {
 
     @Test
     @Order(2)
-    void sendAmountTest() throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException, WrongNonceException, NoSuchAlgorithmException, InvalidKeySpecException {
+    void sendAmountTest() throws FailedChallengeException, SignatureException, InvalidKeyException,
+            FailedAuthenticationException, WrongNonceException, NoSuchAlgorithmException, InvalidKeySpecException {
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
         NonceNegotiationResponse nonceNegotiationResponse;
@@ -83,15 +104,18 @@ class BasicTest {
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("1000", checkAccountResponse.getBalance());
         assertEquals(1, checkAccountResponse.getTransactionsCount());
-        assertEquals(publicKey1, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
-        assertEquals(publicKey2, Crypto.decodePublicKey(checkAccountResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
+        assertEquals(publicKey1, Crypto.decodePublicKey(
+                checkAccountResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
+        assertEquals(publicKey2, Crypto.decodePublicKey(
+                checkAccountResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
         assertEquals("100", checkAccountResponse.getTransactionsList().get(0).getTransaction().getAmount());
         assertTrue(Signatures.verifyPendingTransactionSignature(checkAccountResponse.getTransactionsList().get(0)));
     }
 
     @Test
     @Order(3)
-    void acceptAmountTest() throws WrongNonceException, SignatureException, InvalidKeyException, FailedAuthenticationException, FailedChallengeException {
+    void acceptAmountTest() throws WrongNonceException, SignatureException, InvalidKeyException,
+            FailedAuthenticationException, FailedChallengeException {
         CheckAccountResponse checkAccountResponse;
         ReceiveAmountResponse receiveAmountResponse;
 
@@ -109,7 +133,8 @@ class BasicTest {
 
     @Test
     @Order(4)
-    void rejectAmountTest() throws WrongNonceException, SignatureException, InvalidKeyException, FailedAuthenticationException, FailedChallengeException {
+    void rejectAmountTest() throws WrongNonceException, SignatureException, InvalidKeyException,
+            FailedAuthenticationException, FailedChallengeException {
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
         ReceiveAmountResponse receiveAmountResponse;
@@ -138,30 +163,36 @@ class BasicTest {
 
     @Test
     @Order(5)
-    void auditTest() throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException, NoSuchAlgorithmException, InvalidKeySpecException {
+    void auditTest() throws FailedChallengeException, SignatureException, InvalidKeyException,
+            FailedAuthenticationException, NoSuchAlgorithmException, InvalidKeySpecException {
         AuditResponse auditResponse;
 
         // Check both accounts audits
         auditResponse = client.audit(publicKey1);
         assertEquals(AuditResponse.Status.SUCCESS, auditResponse.getStatus());
         assertEquals(1, auditResponse.getTransactionsCount());
-        assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
-        assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
+        assertEquals(publicKey1, Crypto
+                .decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
+        assertEquals(publicKey2, Crypto.decodePublicKey(
+                auditResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
         assertEquals("100", auditResponse.getTransactionsList().get(0).getTransaction().getAmount());
         assertTrue(Signatures.verifyAcceptedTransactionSignature(auditResponse.getTransactionsList().get(0)));
 
         auditResponse = client.audit(publicKey2);
         assertEquals(AuditResponse.Status.SUCCESS, auditResponse.getStatus());
         assertEquals(1, auditResponse.getTransactionsCount());
-        assertEquals(publicKey1, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
-        assertEquals(publicKey2, Crypto.decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
+        assertEquals(publicKey1, Crypto
+                .decodePublicKey(auditResponse.getTransactionsList().get(0).getTransaction().getSourcePublicKey()));
+        assertEquals(publicKey2, Crypto.decodePublicKey(
+                auditResponse.getTransactionsList().get(0).getTransaction().getDestinationPublicKey()));
         assertEquals("100", auditResponse.getTransactionsList().get(0).getTransaction().getAmount());
         assertTrue(Signatures.verifyAcceptedTransactionSignature(auditResponse.getTransactionsList().get(0)));
     }
 
     @Test
     @Order(6)
-    void incorrectUsageTest() throws WrongNonceException, FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
+    void incorrectUsageTest() throws WrongNonceException, FailedChallengeException, FailedAuthenticationException,
+            SignatureException, InvalidKeyException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
@@ -215,5 +246,7 @@ class BasicTest {
     @AfterAll
     static void cleanup() {
         client.shutdown();
+        File keystore = new File(keyStoreFile);
+        keystore.delete();
     }
 }

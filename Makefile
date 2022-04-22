@@ -21,6 +21,10 @@ server: contract shared cert
 	cd server;\
 	mvn exec:java
 
+client: contract shared
+	cd client;\
+	mvn exec:java -Dhost=localhost -Dport=4200 -DksFile=client.ks -DksPass=a
+
 test: 
 	cd client;\
 	mvn test -Dtarget=localhost:4200 -Dtest=BasicTest -DserverPublicKey=./keys/server/id.pub
@@ -53,7 +57,21 @@ server/keys/certificate.crt server/keys/privateKey.key:
 	openssl rsa -in privateKey.key -pubout -outform DER > id.pub
 	cp server/keys/id.pub client/keys/server/
 
+checkServerKeyStore:
+	@cd server;\
+	echo "0" | keytool -list -keystore server.ks | grep PrivateKeyEntry
+
+checkClientKeyStore:
+	@cd client;\
+	echo "0" | keytool -list -keystore client.ks | grep PrivateKeyEntry
+
 clean:
 	@mvn clean
 	@rm -f server/server.ledger
 	@#rm -f server/keys/certificate.crt server/keys/privateKey.key
+
+template_client $(id):
+	@echo "client$(id)"
+	@echo "./keys/$(id)/private_key.der"
+	@echo "./keys/$(id)/certificate.crt"
+	@echo "./keys/server/id.pub"

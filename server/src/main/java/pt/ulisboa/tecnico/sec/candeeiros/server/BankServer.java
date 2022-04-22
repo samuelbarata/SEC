@@ -27,7 +27,8 @@ public class BankServer {
 		// Check arguments.
 		if (args.length < 7) {
 			logger.error("Argument(s) missing!");
-			logger.error("Usage: java {} port ledger_file private_key_file keyStore_file certificate%n", Server.class.getName());
+			logger.error("Usage: java {} port ledger_file private_key_file keyStore_file certificate server_name%n",
+					Server.class.getName());
 			return;
 		}
 
@@ -35,8 +36,13 @@ public class BankServer {
 		int id = Integer.parseInt(args[5]);
 		int totalServers = Integer.parseInt(args[6]);
 		String ledgeFileName = args[1];
+		String key_path = args[2];
+		String keyStore_path = args[3];
+		String cert_path = args[4];
+		String server_name = args[5];
 
-		keyManager = new KeyManager(args[2], args[3], "0".toCharArray(), "0".toCharArray(), "serverKey", args[4]);
+		keyManager = new KeyManager(key_path, keyStore_path, "0".toCharArray(), "0".toCharArray(), server_name + "key",
+				cert_path);
 
 		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager, id);
 		final BindableService implSync = (BindableService) new SyncBanksServiceImpl(ledgeFileName, keyManager, totalServers, "localhost:" + (4200 + id), port);
