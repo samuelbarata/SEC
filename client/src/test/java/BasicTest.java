@@ -219,36 +219,45 @@ class BasicTest {
         // Send amount from/to account that doesn't exit or to self
         sendAmountResponse = client.sendAmount(privateKey3, publicKey3, publicKey1, "10", nonce1);
         assertEquals(SendAmountResponse.Status.SOURCE_INVALID, sendAmountResponse.getStatus());
+        lightSwitchProtection();
         sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey3, "10", nonce1);
         assertEquals(SendAmountResponse.Status.DESTINATION_INVALID, sendAmountResponse.getStatus());
+        lightSwitchProtection();
         sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey1, "10", nonce1);
         assertEquals(SendAmountResponse.Status.DESTINATION_INVALID, sendAmountResponse.getStatus());
 
         // Create transactions with invalid amounts
+        lightSwitchProtection();
         sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "qwe", nonce1);
         assertEquals(SendAmountResponse.Status.INVALID_NUMBER_FORMAT, sendAmountResponse.getStatus());
+        lightSwitchProtection();
         sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "-100", nonce1);
         assertEquals(SendAmountResponse.Status.INVALID_NUMBER_FORMAT, sendAmountResponse.getStatus());
+        lightSwitchProtection();
         sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "0", nonce1);
         assertEquals(SendAmountResponse.Status.INVALID_NUMBER_FORMAT, sendAmountResponse.getStatus());
 
         // Send amount bigger than balance
+        lightSwitchProtection();
         sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "10000", nonce1);
         assertEquals(SendAmountResponse.Status.NOT_ENOUGH_BALANCE, sendAmountResponse.getStatus());
 
         // Accept transaction that does not exist
+        lightSwitchProtection();
         sendAmountResponse = client.sendAmount(privateKey1, publicKey1, publicKey2, "100", nonce1);
         assertEquals(SendAmountResponse.Status.SUCCESS, sendAmountResponse.getStatus());
         nonce2 = Nonce.decode(sendAmountResponse.getNonce());
 
         receiveAmountResponse = client.receiveAmount(privateKey2, publicKey1, publicKey2, "200", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION, receiveAmountResponse.getStatus());
+        lightSwitchProtection();
         receiveAmountResponse = client.receiveAmount(privateKey2, publicKey3, publicKey2, "100", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.NO_SUCH_TRANSACTION, receiveAmountResponse.getStatus());
         receiveAmountResponse = client.receiveAmount(privateKey3, publicKey1, publicKey3, "100", true, nonce2);
         assertEquals(ReceiveAmountResponse.Status.INVALID_KEY, receiveAmountResponse.getStatus());
 
         // Use wrong nonce
+        lightSwitchProtection();
         receiveAmountResponse = client.receiveAmount(privateKey2, publicKey1, publicKey2, "100", true, nonce1);
         assertEquals(ReceiveAmountResponse.Status.INVALID_NONCE, receiveAmountResponse.getStatus());
     }

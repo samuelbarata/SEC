@@ -41,8 +41,7 @@ public class BankServer {
 		int totalServers = Integer.parseInt(args[6]);
 		String server_name = args[7];
 
-		keyManager = new KeyManager(key_path, keyStore_path, "0".toCharArray(), "0".toCharArray(), server_name + "key",
-				cert_path);
+		keyManager = new KeyManager(key_path, keyStore_path, "0".toCharArray(), "0".toCharArray(), server_name + "key", cert_path);
 
 		final LightSwitch lSwitch = new LightSwitch();
 

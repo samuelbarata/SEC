@@ -11,7 +11,7 @@ import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 public class LightSwitch {
     private static final Logger logger = LoggerFactory.getLogger(LightSwitch.class);
     ConcurrentHashMap<PublicKey, LocalDateTime> chandelier = new ConcurrentHashMap<>();
-    private static final long lightSpeed = 100000000;
+    private static final long lightSpeed = 400000000; // 400ms
 
     public LightSwitch() {
         this.chandelier = new ConcurrentHashMap<>();
@@ -23,7 +23,7 @@ public class LightSwitch {
             chandelier.put(lamp, now);
             return true;
         }
-        if (chandelier.get(lamp).plusNanos(lightSpeed).isBefore(now)) { // 100ms
+        if (chandelier.get(lamp).plusNanos(lightSpeed).isBefore(now)) {
             chandelier.put(lamp, now);
             return true;
         } else {

@@ -94,14 +94,16 @@ class ByzantineTest {
 
     @Test
     void delayedReplayAttackTest()
-            throws FailedAuthenticationException, WrongNonceException, SignatureException, InvalidKeyException {
+            throws FailedAuthenticationException, WrongNonceException, SignatureException, InvalidKeyException, InterruptedException {
         // First 2 executions should not fail
         client.sendAmountDelayedReplayAttack(privateKey1, publicKey1, publicKey2, "100", nonce1);
         nonce1 = nonce1.nextNonce();
+        lightSwitchProtection();
         client.sendAmountDelayedReplayAttack(privateKey1, publicKey1, publicKey2, "100", nonce1);
         nonce1 = nonce1.nextNonce();
 
         // Third execution should fail nonce
+        lightSwitchProtection();
         assertThrows(WrongNonceException.class,
                 () -> client.sendAmountDelayedReplayAttack(privateKey1, publicKey1, publicKey2, "100", nonce1));
 

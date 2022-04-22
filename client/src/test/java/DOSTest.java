@@ -74,7 +74,7 @@ class DOSTest {
         nonce1 = Nonce.decode(sendAmountResponse.getNonce());
         checkAccountResponse = client.checkAccount(publicKey1);
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
-        assertEquals("499", checkAccountResponse.getBalance());
+        assertEquals("599", checkAccountResponse.getBalance());
         assertEquals(0, checkAccountResponse.getTransactionsCount());
         
         //DOS Attack
