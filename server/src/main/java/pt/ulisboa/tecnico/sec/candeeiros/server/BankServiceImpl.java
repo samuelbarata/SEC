@@ -65,8 +65,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	public void CreateStubs() {
 		ManagedChannel channel;
-		for(String target: SyncBanksTargets)
-		{
+		for (String target : SyncBanksTargets) {
 			channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
 			SyncBanksManagedChannels.add(channel);
 			SyncBanksStubs.add(SyncBanksServiceGrpc.newBlockingStub(channel));
@@ -76,20 +75,20 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	// ***** Authenticated procedures *****
 
 	@Override
-	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.OpenAccountResponse> responseObserver) {
+	public void openAccount(Bank.OpenAccountRequest request,
+			StreamObserver<Bank.OpenAccountResponse> responseObserver) {
 		int currentTS = timestamp;
 		SyncBanks.OpenAccountIntentRequest.Builder intentRequest = SyncBanks.OpenAccountIntentRequest.newBuilder();
 		intentRequest.setOpenAccountRequest(request);
 		intentRequest.setTimestamp(timestamp);
 		// send intents to all servers
-		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
-		{
+		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
 			logger.info("Bank Service: Sent Open Account Sync");
 			stub.openAccountSync(intentRequest.build());
 		}
 		timestamp++;
 		logger.info("Bank Service: Waiting for Open Account Response");
-		while (OpenAccountResponses.get(currentTS)==null) {
+		while (OpenAccountResponses.get(currentTS) == null) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
@@ -97,9 +96,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			}
 		}
 		Bank.OpenAccountResponse responseSync = OpenAccountResponses.get(currentTS);
-		Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder().setStatus(responseSync.getStatus());
+		Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder()
+				.setStatus(responseSync.getStatus());
 		response.setChallengeNonce(request.getChallengeNonce());
-		try{
+		try {
 			response.setSignature(Bank.Signature.newBuilder()
 					.setSignatureBytes(ByteString.copyFrom(Signatures.signOpenAccountResponse(keyManager.getKey(),
 							request.getChallengeNonce().getNonceBytes().toByteArray(),
@@ -110,50 +110,54 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			e.printStackTrace();
 		}
 
-
 		responseObserver.onNext(response.build());
 		responseObserver.onCompleted();
 		logger.info("Open Account Finished");
 
-			/*Bank.OpenAccountResponse.Status status = openAccountStatus(request);
-
-			logger.info("Got request to open account. Status: {}", status);
-
-				Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder()
-					.setStatus(status);
-
-			switch (status) {
-				case SUCCESS:
-					PublicKey publicKey;
-					try {
-						publicKey = Crypto.decodePublicKey(request.getPublicKey());
-					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-						// Should never happen
-						e.printStackTrace();
-						break;
-					}
-
-					bank.createAccount(publicKey);
-					logger.info("Opened account with public key {}.", Crypto.keyAsShortString(publicKey));
-					break;
-				case INVALID_MESSAGE_FORMAT:
-					responseObserver.onNext(response.build());
-					responseObserver.onCompleted();
-					return;
-			}
-			response.setChallengeNonce(request.getChallengeNonce());
-			try {
-				response.setSignature(Bank.Signature.newBuilder()
-						.setSignatureBytes(ByteString.copyFrom(Signatures.signOpenAccountResponse(keyManager.getKey(),
-								request.getChallengeNonce().getNonceBytes().toByteArray(),
-								status.name())))
-						.build());
-			} catch (InvalidKeyException | SignatureException e) {
-				// Should never happen
-				e.printStackTrace();
-			}
-			responseObserver.onNext(response.build());
-			responseObserver.onCompleted();*/
+		/*
+		 * Bank.OpenAccountResponse.Status status = openAccountStatus(request);
+		 * 
+		 * logger.info("Got request to open account. Status: {}", status);
+		 * 
+		 * Bank.OpenAccountResponse.Builder response =
+		 * Bank.OpenAccountResponse.newBuilder()
+		 * .setStatus(status);
+		 * 
+		 * switch (status) {
+		 * case SUCCESS:
+		 * PublicKey publicKey;
+		 * try {
+		 * publicKey = Crypto.decodePublicKey(request.getPublicKey());
+		 * } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+		 * // Should never happen
+		 * e.printStackTrace();
+		 * break;
+		 * }
+		 * 
+		 * bank.createAccount(publicKey);
+		 * logger.info("Opened account with public key {}.",
+		 * Crypto.keyAsShortString(publicKey));
+		 * break;
+		 * case INVALID_MESSAGE_FORMAT:
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * return;
+		 * }
+		 * response.setChallengeNonce(request.getChallengeNonce());
+		 * try {
+		 * response.setSignature(Bank.Signature.newBuilder()
+		 * .setSignatureBytes(ByteString.copyFrom(Signatures.signOpenAccountResponse(
+		 * keyManager.getKey(),
+		 * request.getChallengeNonce().getNonceBytes().toByteArray(),
+		 * status.name())))
+		 * .build());
+		 * } catch (InvalidKeyException | SignatureException e) {
+		 * // Should never happen
+		 * e.printStackTrace();
+		 * }
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 */
 	}
 
 	@Override
@@ -168,7 +172,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			if (!request.hasChallengeNonce() || !request.hasSignature() || !request.hasPublicKey())
 				return Bank.NonceNegotiationResponse.Status.INVALID_MESSAGE_FORMAT;
 			PublicKey key = Crypto.decodePublicKey(request.getPublicKey());
-			if (!Signatures.verifyNonceNegotiationRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), key,
+			if (!Signatures.verifyNonceNegotiationRequestSignature(
+					request.getSignature().getSignatureBytes().toByteArray(), key,
 					request.getChallengeNonce().getNonceBytes().toByteArray(),
 					request.getPublicKey().getKeyBytes().toByteArray()))
 				return Bank.NonceNegotiationResponse.Status.INVALID_SIGNATURE;
@@ -181,68 +186,73 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	}
 
 	@Override
-	public void nonceNegotiation(Bank.NonceNegotiationRequest request, StreamObserver<Bank.NonceNegotiationResponse> responseObserver) {
-		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
-		{
+	public void nonceNegotiation(Bank.NonceNegotiationRequest request,
+			StreamObserver<Bank.NonceNegotiationResponse> responseObserver) {
+		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
 			responseObserver.onNext(stub.nonceNegotiation(request));
 			responseObserver.onCompleted();
 		}
-		/*synchronized (bank) {
-			Bank.NonceNegotiationResponse.Status status = nonceNegotiationStatus(request);
-			Bank.NonceNegotiationResponse.Builder response = Bank.NonceNegotiationResponse.newBuilder().setStatus(status);
-
-			logger.info("Got nonce negotiation request. Status: {}", status.name());
-			byte[] nonceBytes = new byte[0];
-
-			switch (status) {
-				case SUCCESS:
-					PublicKey key = null;
-					try {
-						key = Crypto.decodePublicKey(request.getPublicKey());
-					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-						// This should not happen
-						e.printStackTrace();
-					}
-
-					BankAccount account = bank.getAccount(key);
-					response.setNonce(account.getNonce().encode());
-					break;
-				case INVALID_MESSAGE_FORMAT:
-					responseObserver.onNext(response.build());
-					responseObserver.onCompleted();
-					return;
-			}
-
-			response.setChallengeNonce(request.getChallengeNonce());
-			try {
-				response.setSignature(Bank.Signature.newBuilder()
-						.setSignatureBytes(ByteString.copyFrom(Signatures.signNonceNegotiationResponse(keyManager.getKey(),
-								request.getChallengeNonce().getNonceBytes().toByteArray(),
-								status.name()
-								)))
-						.build());
-			} catch (SignatureException | InvalidKeyException e) {
-				// should never happen
-				e.printStackTrace();
-			}
-
-			responseObserver.onNext(response.build());
-			responseObserver.onCompleted();
-		}*/
+		/*
+		 * synchronized (bank) {
+		 * Bank.NonceNegotiationResponse.Status status =
+		 * nonceNegotiationStatus(request);
+		 * Bank.NonceNegotiationResponse.Builder response =
+		 * Bank.NonceNegotiationResponse.newBuilder().setStatus(status);
+		 * 
+		 * logger.info("Got nonce negotiation request. Status: {}", status.name());
+		 * byte[] nonceBytes = new byte[0];
+		 * 
+		 * switch (status) {
+		 * case SUCCESS:
+		 * PublicKey key = null;
+		 * try {
+		 * key = Crypto.decodePublicKey(request.getPublicKey());
+		 * } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+		 * // This should not happen
+		 * e.printStackTrace();
+		 * }
+		 * 
+		 * BankAccount account = bank.getAccount(key);
+		 * response.setNonce(account.getNonce().encode());
+		 * break;
+		 * case INVALID_MESSAGE_FORMAT:
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * return;
+		 * }
+		 * 
+		 * response.setChallengeNonce(request.getChallengeNonce());
+		 * try {
+		 * response.setSignature(Bank.Signature.newBuilder()
+		 * .setSignatureBytes(ByteString.copyFrom(Signatures.
+		 * signNonceNegotiationResponse(keyManager.getKey(),
+		 * request.getChallengeNonce().getNonceBytes().toByteArray(),
+		 * status.name()
+		 * )))
+		 * .build());
+		 * } catch (SignatureException | InvalidKeyException e) {
+		 * // should never happen
+		 * e.printStackTrace();
+		 * }
+		 * 
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * }
+		 */
 	}
-
-
 
 	private Bank.SendAmountResponse.Status sendAmountStatus(Bank.SendAmountRequest request) {
 		try {
 			if (!request.hasSignature() || !request.hasNonce() || !request.hasTransaction() ||
-				!request.getTransaction().hasSourcePublicKey() || !request.getTransaction().hasDestinationPublicKey())
+					!request.getTransaction().hasSourcePublicKey()
+					|| !request.getTransaction().hasDestinationPublicKey())
 				return Bank.SendAmountResponse.Status.INVALID_MESSAGE_FORMAT;
 
 			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 
-			if (!Signatures.verifySendAmountRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), sourceKey,
+			if (!Signatures.verifySendAmountRequestSignature(request.getSignature().getSignatureBytes().toByteArray(),
+					sourceKey,
 					request.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray(),
 					request.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray(),
 					request.getTransaction().getAmount(),
@@ -277,13 +287,12 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		intentRequest.setSendAmountRequest(request);
 		intentRequest.setTimestamp(timestamp);
 		// send intents to all servers
-		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
-		{
+		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
 			stub.sendAmountSync(intentRequest.build());
 		}
 		timestamp++;
 
-		while (SendAmountResponses.get(currentTS)==null) {
+		while (SendAmountResponses.get(currentTS) == null) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
@@ -291,9 +300,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			}
 		}
 		Bank.SendAmountResponse responseSync = SendAmountResponses.get(currentTS);
-		Bank.SendAmountResponse.Builder response = Bank.SendAmountResponse.newBuilder().setStatus(responseSync.getStatus());
+		Bank.SendAmountResponse.Builder response = Bank.SendAmountResponse.newBuilder()
+				.setStatus(responseSync.getStatus());
 		response.setNonce(request.getNonce());
-		try{
+		try {
 			response.setSignature(Bank.Signature.newBuilder()
 					.setSignatureBytes(ByteString.copyFrom(Signatures.signSendAmountResponse(keyManager.getKey(),
 							request.getNonce().getNonceBytes().toByteArray(),
@@ -304,61 +314,67 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			e.printStackTrace();
 		}
 
-
 		responseObserver.onNext(response.build());
 		responseObserver.onCompleted();
 		logger.info("Send Amount Finished");
-		/*synchronized (bank) {
-			Bank.SendAmountResponse.Status status = sendAmountStatus(request);
-
-			logger.info("Got request to create transaction. Status: {}", status);
-
-			Bank.SendAmountResponse.Builder response = Bank.SendAmountResponse.newBuilder()
-					.setStatus(status);
-
-			switch (status) {
-				case SUCCESS:
-					PublicKey destinationKey;
-					PublicKey sourceKey;
-					try {
-						destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
-						sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
-					} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-						// Should never happen
-						e.printStackTrace();
-						break;
-					}
-					BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
-					Nonce nonce = Nonce.decode(request.getNonce());
-					byte[] signature = request.getSignature().getSignatureBytes().toByteArray();
-
-					bank.addTransaction(sourceKey, destinationKey, amount, nonce, signature);
-
-					logger.info("Created transaction: {} -> {} (amount: {})",
-							Crypto.keyAsShortString(sourceKey),
-							Crypto.keyAsShortString(destinationKey),
-							amount);
-					break;
-				case INVALID_MESSAGE_FORMAT:
-					responseObserver.onNext(response.build());
-					responseObserver.onCompleted();
-					return;
-			}
-			response.setNonce(request.getNonce());
-			try {
-				response.setSignature(Bank.Signature.newBuilder()
-						.setSignatureBytes(ByteString.copyFrom(Signatures.signSendAmountResponse(keyManager.getKey(),
-								response.getNonce().getNonceBytes().toByteArray(),
-								status.name())))
-						.build());
-			} catch (SignatureException | InvalidKeyException e) {
-				// Should never happen
-				e.printStackTrace();
-			}
-
-			responseObserver.onNext(response.build());
-			responseObserver.onCompleted();
-		}*/
+		/*
+		 * synchronized (bank) {
+		 * Bank.SendAmountResponse.Status status = sendAmountStatus(request);
+		 * 
+		 * logger.info("Got request to create transaction. Status: {}", status);
+		 * 
+		 * Bank.SendAmountResponse.Builder response =
+		 * Bank.SendAmountResponse.newBuilder()
+		 * .setStatus(status);
+		 * 
+		 * switch (status) {
+		 * case SUCCESS:
+		 * PublicKey destinationKey;
+		 * PublicKey sourceKey;
+		 * try {
+		 * destinationKey =
+		 * Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+		 * sourceKey =
+		 * Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
+		 * } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+		 * // Should never happen
+		 * e.printStackTrace();
+		 * break;
+		 * }
+		 * BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); //
+		 * should never fail
+		 * Nonce nonce = Nonce.decode(request.getNonce());
+		 * byte[] signature = request.getSignature().getSignatureBytes().toByteArray();
+		 * 
+		 * bank.addTransaction(sourceKey, destinationKey, amount, nonce, signature);
+		 * 
+		 * logger.info("Created transaction: {} -> {} (amount: {})",
+		 * Crypto.keyAsShortString(sourceKey),
+		 * Crypto.keyAsShortString(destinationKey),
+		 * amount);
+		 * break;
+		 * case INVALID_MESSAGE_FORMAT:
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * return;
+		 * }
+		 * response.setNonce(request.getNonce());
+		 * try {
+		 * response.setSignature(Bank.Signature.newBuilder()
+		 * .setSignatureBytes(ByteString.copyFrom(Signatures.signSendAmountResponse(
+		 * keyManager.getKey(),
+		 * response.getNonce().getNonceBytes().toByteArray(),
+		 * status.name())))
+		 * .build());
+		 * } catch (SignatureException | InvalidKeyException e) {
+		 * // Should never happen
+		 * e.printStackTrace();
+		 * }
+		 * 
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * }
+		 */
 	}
 
 	@Override
@@ -371,19 +387,20 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private Bank.ReceiveAmountResponse.Status receiveAmountStatus(Bank.ReceiveAmountRequest request) {
 		try {
 			if (!request.hasNonce() || !request.hasSignature() || !request.hasTransaction() ||
-				!request.getTransaction().hasSourcePublicKey() || !request.getTransaction().hasDestinationPublicKey())
+					!request.getTransaction().hasSourcePublicKey()
+					|| !request.getTransaction().hasDestinationPublicKey())
 				return Bank.ReceiveAmountResponse.Status.INVALID_MESSAGE_FORMAT;
 
 			PublicKey destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
 			PublicKey sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
 
-			if (!Signatures.verifyReceiveAmountRequestSignature(request.getSignature().getSignatureBytes().toByteArray(), destinationKey,
+			if (!Signatures.verifyReceiveAmountRequestSignature(
+					request.getSignature().getSignatureBytes().toByteArray(), destinationKey,
 					request.getTransaction().getSourcePublicKey().getKeyBytes().toByteArray(),
 					request.getTransaction().getDestinationPublicKey().getKeyBytes().toByteArray(),
 					request.getTransaction().getAmount(),
 					request.getNonce().getNonceBytes().toByteArray(),
-					request.getAccept()
-					))
+					request.getAccept()))
 				return Bank.ReceiveAmountResponse.Status.INVALID_SIGNATURE;
 
 			if (!bank.accountExists(destinationKey))
@@ -403,18 +420,18 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	}
 
 	@Override
-	public void receiveAmount(Bank.ReceiveAmountRequest request, StreamObserver<Bank.ReceiveAmountResponse> responseObserver) {
+	public void receiveAmount(Bank.ReceiveAmountRequest request,
+			StreamObserver<Bank.ReceiveAmountResponse> responseObserver) {
 		int currentTS = timestamp;
 		SyncBanks.ReceiveAmountIntentRequest.Builder intentRequest = SyncBanks.ReceiveAmountIntentRequest.newBuilder();
 		intentRequest.setReceiveAmountRequest(request);
 		intentRequest.setTimestamp(timestamp);
 		// send intents to all servers
-		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
-		{
+		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
 			stub.receiveAmountSync(intentRequest.build());
 		}
 		timestamp++;
-		while (ReceiveAmountResponses.get(currentTS)==null) {
+		while (ReceiveAmountResponses.get(currentTS) == null) {
 			try {
 				Thread.sleep(100);
 			} catch (InterruptedException e) {
@@ -422,9 +439,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			}
 		}
 		Bank.ReceiveAmountResponse responseSync = ReceiveAmountResponses.get(currentTS);
-		Bank.ReceiveAmountResponse.Builder response = Bank.ReceiveAmountResponse.newBuilder().setStatus(responseSync.getStatus());
+		Bank.ReceiveAmountResponse.Builder response = Bank.ReceiveAmountResponse.newBuilder()
+				.setStatus(responseSync.getStatus());
 		response.setNonce(request.getNonce());
-		try{
+		try {
 			response.setSignature(Bank.Signature.newBuilder()
 					.setSignatureBytes(ByteString.copyFrom(Signatures.signReceiveAmountResponse(keyManager.getKey(),
 							request.getNonce().getNonceBytes().toByteArray(),
@@ -435,72 +453,78 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			e.printStackTrace();
 		}
 
-
 		responseObserver.onNext(response.build());
 		responseObserver.onCompleted();
 		logger.info("Receive Amount Finished");
-		/*synchronized (bank) {
-			Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request);
-
-			logger.info("Got request to accept transaction. Status: {}", status);
-
-			Bank.ReceiveAmountResponse.Builder response = Bank.ReceiveAmountResponse.newBuilder()
-					.setStatus(status);
-
-			switch (status) {
-				case SUCCESS:
-					PublicKey destinationKey;
-					PublicKey sourceKey;
-					try {
-						sourceKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
-						destinationKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
-					} catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-						// Should never happen
-						e.printStackTrace();
-						break;
-					}
-					BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); // should never fail
-					Nonce nonce = Nonce.decode(request.getNonce());
-					byte[] signature = request.getSignature().getSignatureBytes().toByteArray();
-
-					if (request.getAccept()) {
-						bank.acceptTransaction(sourceKey, destinationKey, amount, nonce, signature);
-
-						logger.info("Applied transaction: {} -> {} (amount: {})",
-								Crypto.keyAsShortString(sourceKey),
-								Crypto.keyAsShortString(destinationKey),
-								amount);
-					} else {
-						bank.rejectTransaction(sourceKey, destinationKey, amount, nonce, signature);
-
-						logger.info("Rejected transaction: {} -> {} (amount: {})",
-								Crypto.keyAsShortString(sourceKey),
-								Crypto.keyAsShortString(destinationKey),
-								amount);
-					}
-					break;
-				case INVALID_MESSAGE_FORMAT:
-					responseObserver.onNext(response.build());
-					responseObserver.onCompleted();
-					return;
-			}
-
-			response.setNonce(request.getNonce());
-
-			try {
-				response.setSignature(Bank.Signature.newBuilder()
-						.setSignatureBytes(ByteString.copyFrom(Signatures.signReceiveAmountResponse(keyManager.getKey(),
-								request.getNonce().getNonceBytes().toByteArray(),
-								status.name())))
-						.build());
-			} catch (SignatureException | InvalidKeyException e) {
-				// Should never happen
-				e.printStackTrace();
-			}
-
-			responseObserver.onNext(response.build());
-			responseObserver.onCompleted();
-		}*/
+		/*
+		 * synchronized (bank) {
+		 * Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request);
+		 * 
+		 * logger.info("Got request to accept transaction. Status: {}", status);
+		 * 
+		 * Bank.ReceiveAmountResponse.Builder response =
+		 * Bank.ReceiveAmountResponse.newBuilder()
+		 * .setStatus(status);
+		 * 
+		 * switch (status) {
+		 * case SUCCESS:
+		 * PublicKey destinationKey;
+		 * PublicKey sourceKey;
+		 * try {
+		 * sourceKey =
+		 * Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
+		 * destinationKey =
+		 * Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+		 * } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
+		 * // Should never happen
+		 * e.printStackTrace();
+		 * break;
+		 * }
+		 * BigDecimal amount = new BigDecimal(request.getTransaction().getAmount()); //
+		 * should never fail
+		 * Nonce nonce = Nonce.decode(request.getNonce());
+		 * byte[] signature = request.getSignature().getSignatureBytes().toByteArray();
+		 * 
+		 * if (request.getAccept()) {
+		 * bank.acceptTransaction(sourceKey, destinationKey, amount, nonce, signature);
+		 * 
+		 * logger.info("Applied transaction: {} -> {} (amount: {})",
+		 * Crypto.keyAsShortString(sourceKey),
+		 * Crypto.keyAsShortString(destinationKey),
+		 * amount);
+		 * } else {
+		 * bank.rejectTransaction(sourceKey, destinationKey, amount, nonce, signature);
+		 * 
+		 * logger.info("Rejected transaction: {} -> {} (amount: {})",
+		 * Crypto.keyAsShortString(sourceKey),
+		 * Crypto.keyAsShortString(destinationKey),
+		 * amount);
+		 * }
+		 * break;
+		 * case INVALID_MESSAGE_FORMAT:
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * return;
+		 * }
+		 * 
+		 * response.setNonce(request.getNonce());
+		 * 
+		 * try {
+		 * response.setSignature(Bank.Signature.newBuilder()
+		 * .setSignatureBytes(ByteString.copyFrom(Signatures.signReceiveAmountResponse(
+		 * keyManager.getKey(),
+		 * request.getNonce().getNonceBytes().toByteArray(),
+		 * status.name())))
+		 * .build());
+		 * } catch (SignatureException | InvalidKeyException e) {
+		 * // Should never happen
+		 * e.printStackTrace();
+		 * }
+		 * 
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * }
+		 */
 	}
 
 	@Override
@@ -526,82 +550,84 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	}
 
 	@Override
-	public void checkAccount(Bank.CheckAccountRequest request, StreamObserver<Bank.CheckAccountResponse> responseObserver) {
+	public void checkAccount(Bank.CheckAccountRequest request,
+			StreamObserver<Bank.CheckAccountResponse> responseObserver) {
 
-		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
-		{
+		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
 			responseObserver.onNext(stub.checkAccount(request));
 			responseObserver.onCompleted();
 		}
 
-		/*synchronized (bank) {
-			Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
-			logger.info("Got check account. Status: {}", status);
-
-			Bank.CheckAccountResponse.Builder response = Bank.CheckAccountResponse
-					.newBuilder()
-					.setStatus(status);
-
-			switch (status) {
-				case SUCCESS:
-					PublicKey key = null;
-					try {
-						key = Crypto.decodePublicKey(request.getPublicKey());
-					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-						// This should not happen
-						e.printStackTrace();
-					}
-
-					BankAccount account = bank.getAccount(key);
-					response.setBalance(account.getBalance().toString());
-
-					for (Transaction t : account.getTransactionQueue()) {
-
-						Bank.NonRepudiableTransaction transaction = Bank.NonRepudiableTransaction.newBuilder()
-								.setTransaction(
-									Bank.Transaction.newBuilder()
-									.setAmount(t.getAmount().toString())
-									.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
-									.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
-									.build()
-								)
-								.setSourceNonce(t.getSourceNonce().encode())
-								.setSourceSignature(Bank.Signature.newBuilder()
-										.setSignatureBytes(ByteString.copyFrom(t.getSourceSignature()))
-										.build()
-								)
-								.build();
-						response.addTransactions(transaction);
-					}
-					break;
-				case INVALID_MESSAGE_FORMAT:
-					responseObserver.onNext(response.build());
-					responseObserver.onCompleted();
-					return;
-			}
-
-
-			try {
-				response.setChallengeNonce(request.getChallengeNonce())
-						.setSignature(Bank.Signature.newBuilder()
-							.setSignatureBytes(ByteString.copyFrom(Signatures.signCheckAccountResponse(keyManager.getKey(),
-								request.getChallengeNonce().getNonceBytes().toByteArray(),
-								response.getStatus().name(),
-								response.getBalance(),
-								response.getTransactionsList()
-								)))
-						.build());
-			} catch (SignatureException | InvalidKeyException e) {
-				// Should never happen
-				e.printStackTrace();
-			}
-
-			responseObserver.onNext(response.build());
-			responseObserver.onCompleted();
-		}*/
+		/*
+		 * synchronized (bank) {
+		 * Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
+		 * logger.info("Got check account. Status: {}", status);
+		 * 
+		 * Bank.CheckAccountResponse.Builder response = Bank.CheckAccountResponse
+		 * .newBuilder()
+		 * .setStatus(status);
+		 * 
+		 * switch (status) {
+		 * case SUCCESS:
+		 * PublicKey key = null;
+		 * try {
+		 * key = Crypto.decodePublicKey(request.getPublicKey());
+		 * } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+		 * // This should not happen
+		 * e.printStackTrace();
+		 * }
+		 * 
+		 * BankAccount account = bank.getAccount(key);
+		 * response.setBalance(account.getBalance().toString());
+		 * 
+		 * for (Transaction t : account.getTransactionQueue()) {
+		 * 
+		 * Bank.NonRepudiableTransaction transaction =
+		 * Bank.NonRepudiableTransaction.newBuilder()
+		 * .setTransaction(
+		 * Bank.Transaction.newBuilder()
+		 * .setAmount(t.getAmount().toString())
+		 * .setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
+		 * .setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+		 * .build()
+		 * )
+		 * .setSourceNonce(t.getSourceNonce().encode())
+		 * .setSourceSignature(Bank.Signature.newBuilder()
+		 * .setSignatureBytes(ByteString.copyFrom(t.getSourceSignature()))
+		 * .build()
+		 * )
+		 * .build();
+		 * response.addTransactions(transaction);
+		 * }
+		 * break;
+		 * case INVALID_MESSAGE_FORMAT:
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * return;
+		 * }
+		 * 
+		 * 
+		 * try {
+		 * response.setChallengeNonce(request.getChallengeNonce())
+		 * .setSignature(Bank.Signature.newBuilder()
+		 * .setSignatureBytes(ByteString.copyFrom(Signatures.signCheckAccountResponse(
+		 * keyManager.getKey(),
+		 * request.getChallengeNonce().getNonceBytes().toByteArray(),
+		 * response.getStatus().name(),
+		 * response.getBalance(),
+		 * response.getTransactionsList()
+		 * )))
+		 * .build());
+		 * } catch (SignatureException | InvalidKeyException e) {
+		 * // Should never happen
+		 * e.printStackTrace();
+		 * }
+		 * 
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * }
+		 */
 	}
-
-
 
 	private Bank.AuditResponse.Status auditStatus(Bank.AuditRequest request) {
 		try {
@@ -619,76 +645,80 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void audit(Bank.AuditRequest request, StreamObserver<Bank.AuditResponse> responseObserver) {
-		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
-		{
+		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
 			responseObserver.onNext(stub.audit(request));
 			responseObserver.onCompleted();
 		}
-		/*synchronized (bank) {
-			Bank.AuditResponse.Status status = auditStatus(request);
-
-			logger.info("Got request to audit account. Status {}", status.name());
-
-			Bank.AuditResponse.Builder response = Bank.AuditResponse.newBuilder().setStatus(status);
-
-			switch (status) {
-				case SUCCESS:
-					PublicKey key = null;
-					try {
-						key = Crypto.decodePublicKey(request.getPublicKey());
-					} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-						// This should not happen
-						e.printStackTrace();
-					}
-
-					BankAccount account = bank.getAccount(key);
-
-
-					for (Transaction t : account.getTransactionHistory()) {
-						Bank.NonRepudiableTransaction transaction = Bank.NonRepudiableTransaction.newBuilder()
-								.setTransaction(
-										Bank.Transaction.newBuilder()
-										.setAmount(t.getAmount().toString())
-										.setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
-										.setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
-										.build()
-								)
-								.setSourceNonce(t.getSourceNonce().encode())
-								.setDestinationNonce(t.getDestinationNonce().encode())
-								.setSourceSignature(Bank.Signature.newBuilder()
-										.setSignatureBytes(ByteString.copyFrom(t.getSourceSignature()))
-										.build()
-								)
-								.setDestinationSignature(Bank.Signature.newBuilder()
-										.setSignatureBytes(ByteString.copyFrom(t.getDestinationSignature()))
-										.build()
-								)
-								.build();
-						response.addTransactions(transaction);
-					}
-					break;
-				case INVALID_MESSAGE_FORMAT:
-					responseObserver.onNext(response.build());
-					responseObserver.onCompleted();
-					return;
-			}
-
-			try {
-				response.setChallengeNonce(request.getChallengeNonce())
-						.setSignature(Bank.Signature.newBuilder()
-								.setSignatureBytes(ByteString.copyFrom(Signatures.signAuditResponse(keyManager.getKey(),
-										request.getChallengeNonce().getNonceBytes().toByteArray(),
-										response.getStatus().name(),
-										response.getTransactionsList()
-								)))
-								.build());
-			} catch (SignatureException | InvalidKeyException e) {
-				// should never happen
-				e.printStackTrace();
-			}
-
-			responseObserver.onNext(response.build());
-			responseObserver.onCompleted();
-		}*/
+		/*
+		 * synchronized (bank) {
+		 * Bank.AuditResponse.Status status = auditStatus(request);
+		 * 
+		 * logger.info("Got request to audit account. Status {}", status.name());
+		 * 
+		 * Bank.AuditResponse.Builder response =
+		 * Bank.AuditResponse.newBuilder().setStatus(status);
+		 * 
+		 * switch (status) {
+		 * case SUCCESS:
+		 * PublicKey key = null;
+		 * try {
+		 * key = Crypto.decodePublicKey(request.getPublicKey());
+		 * } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+		 * // This should not happen
+		 * e.printStackTrace();
+		 * }
+		 * 
+		 * BankAccount account = bank.getAccount(key);
+		 * 
+		 * 
+		 * for (Transaction t : account.getTransactionHistory()) {
+		 * Bank.NonRepudiableTransaction transaction =
+		 * Bank.NonRepudiableTransaction.newBuilder()
+		 * .setTransaction(
+		 * Bank.Transaction.newBuilder()
+		 * .setAmount(t.getAmount().toString())
+		 * .setDestinationPublicKey(Crypto.encodePublicKey(t.getDestination()))
+		 * .setSourcePublicKey(Crypto.encodePublicKey(t.getSource()))
+		 * .build()
+		 * )
+		 * .setSourceNonce(t.getSourceNonce().encode())
+		 * .setDestinationNonce(t.getDestinationNonce().encode())
+		 * .setSourceSignature(Bank.Signature.newBuilder()
+		 * .setSignatureBytes(ByteString.copyFrom(t.getSourceSignature()))
+		 * .build()
+		 * )
+		 * .setDestinationSignature(Bank.Signature.newBuilder()
+		 * .setSignatureBytes(ByteString.copyFrom(t.getDestinationSignature()))
+		 * .build()
+		 * )
+		 * .build();
+		 * response.addTransactions(transaction);
+		 * }
+		 * break;
+		 * case INVALID_MESSAGE_FORMAT:
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * return;
+		 * }
+		 * 
+		 * try {
+		 * response.setChallengeNonce(request.getChallengeNonce())
+		 * .setSignature(Bank.Signature.newBuilder()
+		 * .setSignatureBytes(ByteString.copyFrom(Signatures.signAuditResponse(
+		 * keyManager.getKey(),
+		 * request.getChallengeNonce().getNonceBytes().toByteArray(),
+		 * response.getStatus().name(),
+		 * response.getTransactionsList()
+		 * )))
+		 * .build());
+		 * } catch (SignatureException | InvalidKeyException e) {
+		 * // should never happen
+		 * e.printStackTrace();
+		 * }
+		 * 
+		 * responseObserver.onNext(response.build());
+		 * responseObserver.onCompleted();
+		 * }
+		 */
 	}
 }
