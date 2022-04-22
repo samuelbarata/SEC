@@ -32,6 +32,7 @@ Example Usage (where `#1` and `#2` are different terminals), showing intended te
 make server         |
                     | make test
                     | make test_byzantine
+                    | make test_dos
 # Ctrl-C            |
 make server         | 
                     | make test_persistence

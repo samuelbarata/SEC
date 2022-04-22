@@ -37,6 +37,10 @@ test_byzantine:
 	cd client;\
 	mvn test -Dtarget=localhost:4200 -Dtest=ByzantineTest -DserverPublicKey=./keys/server/id.pub
 
+test_dos: 
+	cd client;\
+	mvn test -Dtarget=localhost:4200 -Dtest=DOSTest -DserverPublicKey=./keys/server/id.pub
+
 test_crash: 
 	cd client;\
 	mvn test -Dtarget=localhost:4200 -Dtest=CrashTest -DserverPublicKey=./keys/server/id.pub
