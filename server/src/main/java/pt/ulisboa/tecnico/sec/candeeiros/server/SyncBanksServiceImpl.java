@@ -87,7 +87,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         this.port = port;
         this.keyManager = keyManager;
         CreateStubs();
-        System.out.println(Math.ceil((double)totalServers/2));
+        logger.info("Servers needed for majority: {}", Math.ceil((double)totalServers/2));
     }
 
     public void CreateStubs()
@@ -106,7 +106,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         ManagedChannel bankManagedChannel = ManagedChannelBuilder.forTarget(BankTarget).usePlaintext().build();
         BankStub = BankServiceGrpc.newBlockingStub(bankManagedChannel);
-
+        logger.info("Created Stubs");
     }
 
     public Bank.Ack buildAck() {
@@ -175,7 +175,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
         // receive intent to open account
-        System.out.println("Open Account: Got Intent");
+        logger.info("Open Account: Got Intent"); //TODO add from which server id it got
         openAccountIntents.put(request.getTimestamp(), new openAccountIntent(request.getTimestamp(), request.getOpenAccountRequest()));
 
         // check status if account can be opened
@@ -197,7 +197,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     public void openAccountStatus(SyncBanks.OpenAccountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
-        System.out.println("Open Account: Got Status");
+        logger.info("Open Account: Got Status"); //TODO add from which server id it got
         openAccountIntent currentIntent = openAccountIntents.get(request.getTimestamp());
         //TODO what if the currentIntent is null/doesn't exist?
 
@@ -226,12 +226,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     public void openAccountApplied(SyncBanks.OpenAccountAppliedRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
-        System.out.println("Open Account: Got Applied");
+        logger.info("Open Account: Got Applied"); //TODO add from which server id it got
         // add to applied array of this open account applied
         openAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
         if(openAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
-            System.out.println("Open Account: Applied Majority");
+            logger.info("Open Account: Applied Majority");
             // if so, send to client the requests result
             Bank.OpenAccountSync.Builder syncResponse = Bank.OpenAccountSync.newBuilder();
             syncResponse.setOpenAccountResponse(openAccountResponses.get(request.getTimestamp()));
@@ -347,7 +347,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
 
-        System.out.println("Send Amount: Got Status");
+        logger.info("Send Amount: Got Status");
         sendAmountIntent currentIntent = sendAmountIntents.get(request.getTimestamp());
         //TODO what if the currentIntent is null/doesn't exist?
 
@@ -376,12 +376,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     public void sendAmountApplied(SyncBanks.SendAmountAppliedRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
-        System.out.println("Send Amount: Got Applied");
+        logger.info("Send Amount: Got Applied");
         // add to applied array of this send amount applied
         sendAmountAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
         if(sendAmountAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
-            System.out.println("Send Amount: Applied Majority");
+            logger.info("Send Amount: Applied Majority");
             // if so, send to client the requests result
             Bank.SendAmountSync.Builder syncResponse = Bank.SendAmountSync.newBuilder();
             syncResponse.setSendAmountResponse(sendAmountResponses.get(request.getTimestamp()));
@@ -502,7 +502,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
 
-        System.out.println("Receive Amount: Got Status");
+        logger.info("Receive Amount: Got Status");
         receiveAmountIntent currentIntent = receiveAmountIntents.get(request.getTimestamp());
         //TODO what if the currentIntent is null/doesn't exist?
 
@@ -531,12 +531,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     public void receiveAmountApplied(SyncBanks.ReceiveAmountAppliedRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
-        System.out.println("Receive Amount: Got Applied");
+        logger.info("Receive Amount: Got Applied");
         // add to applied array of this send amount applied
         receiveAmountAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
         if(receiveAmountAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
-            System.out.println("Receive Amount: Applied Majority");
+            logger.info("Receive Amount: Applied Majority");
             // if so, send to client the requests result
             Bank.ReceiveAmountSync.Builder syncResponse = Bank.ReceiveAmountSync.newBuilder();
             syncResponse.setReceiveAmountResponse(receiveAmountResponses.get(request.getTimestamp()));

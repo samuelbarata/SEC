@@ -113,7 +113,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 		responseObserver.onNext(response.build());
 		responseObserver.onCompleted();
-		System.out.println("Open Account Finished");
+		logger.info("Open Account Finished");
 
 			/*Bank.OpenAccountResponse.Status status = openAccountStatus(request);
 
@@ -158,7 +158,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void openAccountSyncRequest(Bank.OpenAccountSync request, StreamObserver<Bank.Ack> responseObserver) {
-		System.out.println("Got Sync Request: " + request.getTimestamp());
+		logger.info("Got Sync Request: " + request.getTimestamp());
 		Bank.OpenAccountResponse response = request.getOpenAccountResponse();
 		OpenAccountResponses.put(request.getTimestamp(), response);
 	}
@@ -279,12 +279,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		// send intents to all servers
 		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
 		{
-			System.out.println("Sent");
 			stub.sendAmountSync(intentRequest.build());
-			System.out.println("Replied");
 		}
 		timestamp++;
-		System.out.println("Start wait");
+
 		while (SendAmountResponses.get(currentTS)==null) {
 			try {
 				Thread.sleep(100);
@@ -309,7 +307,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 		responseObserver.onNext(response.build());
 		responseObserver.onCompleted();
-		System.out.println("Open Account Finished");
+		logger.info("Open Account Finished");
 		/*synchronized (bank) {
 			Bank.SendAmountResponse.Status status = sendAmountStatus(request);
 
@@ -365,7 +363,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void sendAmountSyncRequest(Bank.SendAmountSync request, StreamObserver<Bank.Ack> responseObserver) {
-		System.out.println("Got Sync Request: " + request.getTimestamp());
+		logger.info("Got Sync Request: " + request.getTimestamp());
 		Bank.SendAmountResponse response = request.getSendAmountResponse();
 		SendAmountResponses.put(request.getTimestamp(), response);
 	}
@@ -413,12 +411,9 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		// send intents to all servers
 		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
 		{
-			System.out.println("Sent");
 			stub.receiveAmountSync(intentRequest.build());
-			System.out.println("Replied");
 		}
 		timestamp++;
-		System.out.println("Start wait");
 		while (ReceiveAmountResponses.get(currentTS)==null) {
 			try {
 				Thread.sleep(100);
@@ -443,7 +438,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 		responseObserver.onNext(response.build());
 		responseObserver.onCompleted();
-		System.out.println("Open Account Finished");
+		logger.info("Open Account Finished");
 		/*synchronized (bank) {
 			Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request);
 
@@ -510,7 +505,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void receiveAmountSyncRequest(Bank.ReceiveAmountSync request, StreamObserver<Bank.Ack> responseObserver) {
-		System.out.println("Got Sync Request: " + request.getTimestamp());
+		logger.info("Got Sync Request: " + request.getTimestamp());
 		Bank.ReceiveAmountResponse response = request.getReceiveAmountResponse();
 		ReceiveAmountResponses.put(request.getTimestamp(), response);
 	}
