@@ -20,10 +20,6 @@
 		<version.maven-surefire-plugin>3.0.0-M5</version.maven-surefire-plugin>
 
 		<mainclass>pt.ulisboa.tecnico.sec.candeeiros.client.InteractiveClient</mainclass>
-		<server.host>localhost</server.host>
-		<server.port>4200</server.port>
-		<client.ksFile>./client.ks</client.ksFile>
-		<client.ksPass>a</client.ksPass>
 	</properties>
 
 	<dependencies>
@@ -80,10 +76,6 @@
 				<configuration>
 					<mainClass>${mainclass}</mainClass>
 					<arguments>
-						<argument>${server.host}</argument>
-						<argument>${server.port}</argument>
-						<argument>${client.ksFile}</argument>
-						<argument>${client.ksPass}</argument>
 					</arguments>
 				</configuration>
 			</plugin>

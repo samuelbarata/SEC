@@ -21,9 +21,9 @@ server: contract shared cert
 	cd server;\
 	mvn exec:java
 
-client: contract shared
+client $(id): contract shared
 	cd client;\
-	mvn exec:java -Dhost=localhost -Dport=4200 -DksFile=client.ks -DksPass=a
+		mvn exec:java -Dexec.args="localhost 4200 ./client.ks a client$(id) 0 ./keys/server/id.pub ./keys/$(id)/private_key.der ./keys/$(id)/certificate.crt"
 
 test: 
 	cd client;\
@@ -70,8 +70,3 @@ clean:
 	@rm -f server/server.ledger
 	@#rm -f server/keys/certificate.crt server/keys/privateKey.key
 
-template_client $(id):
-	@echo "client$(id)"
-	@echo "./keys/$(id)/private_key.der"
-	@echo "./keys/$(id)/certificate.crt"
-	@echo "./keys/server/id.pub"

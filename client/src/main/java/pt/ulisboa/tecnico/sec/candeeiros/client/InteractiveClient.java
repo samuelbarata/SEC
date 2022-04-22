@@ -1,8 +1,5 @@
 package pt.ulisboa.tecnico.sec.candeeiros.client;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedAuthenticationException;
 import pt.ulisboa.tecnico.sec.candeeiros.client.exceptions.FailedChallengeException;
@@ -12,167 +9,238 @@ import pt.ulisboa.tecnico.sec.candeeiros.shared.KeyManager;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Nonce;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.exceptions.UnexistingKeyException;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.security.*;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.SignatureException;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Scanner;
 
 public class InteractiveClient {
-    private final Logger logger = LoggerFactory.getLogger(InteractiveClient.class);
-    private final PublicKey publicKey;
-    private final String target;
+    public static void main(String args[]) throws CertificateException, IOException {
+        final String host;
+        final int port;
+        final String target;
+        final String keyStorePath;
+        final String keyStorePassword;
+        final String keyPassword;
+        final String serverKeyPath;
+        final String keyName;
+        String privateKeyPath = null;
+        String certificatePath = null;
+
+        if (args.length == 9) {
+            privateKeyPath = args[7];
+            certificatePath = args[8];
+        } else if (args.length != 7) {
+            System.out.println("Not enough arguments!");
+            return;
+        }
+
+        host = args[0];
+        port = Integer.parseInt(args[1]);
+        target = host + ":" + port;
+        keyStorePath = args[2];
+        keyStorePassword = args[3];
+        keyName = args[4];
+        keyPassword = args[5];
+        serverKeyPath = args[6];
+
+        KeyManager keyManager;
+
+        try {
+            System.out.println("Found key in keystore. Loading it...");
+            keyManager = new KeyManager(keyName, keyStorePath, keyPassword.toCharArray(), keyStorePassword.toCharArray());
+        } catch (UnexistingKeyException | IOException e) {
+            if (privateKeyPath != null && certificatePath != null) {
+                System.out.println("Key does not exist in keystore! Please provide private key and cert to add.");
+                return;
+            }
+            System.out.println("Key not found in keystore. Adding it...");
+            keyManager = new KeyManager(privateKeyPath, keyStorePath, keyPassword.toCharArray(),
+                    keyStorePassword.toCharArray(), keyName, certificatePath);
+        }
+
+        InteractiveClient client = new InteractiveClient(target, keyManager, (PublicKey) Crypto.readKeyOrExit(serverKeyPath, "pub"));
+        client.run();
+    }
+
     private final BankClient client;
-    private final KeyManager keymanager;
+    private final PublicKey publicKey;
+    private final KeyManager keyManager;
+    private final Scanner scan;
     private Nonce nonce = null;
 
-    public InteractiveClient(String target, String serverPublicKeyFile, KeyManager keymanager) {
-        this.target = target;
-        // this.publicKey = (PublicKey) Crypto.readKeyOrExit(publicKeyFile, "pub");
-        this.keymanager = keymanager;
-        this.publicKey = keymanager.getPublicKey();
-        client = new BankClient(target, (PublicKey) Crypto.readKeyOrExit(serverPublicKeyFile, "pub"));
-    }
-
-    private void negotiateNonce()
-            throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
-        if (nonce != null)
-            return;
-        Bank.NonceNegotiationResponse response = client.nonceNegotiation(keymanager.getKey(), publicKey);
-        nonce = Nonce.decode(response.getNonce());
-    }
-
-    private Bank.OpenAccountResponse openAccount()
-            throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
-        Bank.OpenAccountResponse response = client.openAccount(keymanager.getKey(), publicKey);
-        negotiateNonce();
-        return response;
-    }
-
-    private Bank.SendAmountResponse sendAmount(PublicKey destination, String amount) throws WrongNonceException,
-            FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
-        negotiateNonce();
-        Bank.SendAmountResponse response = client.sendAmount(keymanager.getKey(), publicKey, destination, amount,
-                nonce);
-        nonce = Nonce.decode(response.getNonce());
-        return response;
-    }
-
-    private Bank.CheckAccountResponse checkAccount(PublicKey publicKey)
-            throws FailedChallengeException, FailedAuthenticationException {
-        Bank.CheckAccountResponse response = client.checkAccount(publicKey);
-        return response;
+    public InteractiveClient(String target, KeyManager keyManager, PublicKey serverPublicKey) {
+        this.keyManager = keyManager;
+        this.publicKey = keyManager.getPublicKey();
+        client = new BankClient(target, serverPublicKey);
+        this.scan = new Scanner(System.in);
     }
 
     public void run() {
-        String line;
-        Nonce nonce = null;
-
         while (true) {
-            Scanner scan = new Scanner(System.in);
+            System.out.println("1. Open Account");
+            System.out.println("2. Send Amount");
+            System.out.println("3. Receive Amount");
+            System.out.println("4. Check Account");
+            System.out.println("5. Audit Account");
+            System.out.println("6. Exit");
+            System.out.print("> ");
+            System.out.flush();
 
-            System.out.print("Enter a command: ");
-            line = scan.nextLine();
-            String[] commandArgs = line.split(" ");
-            switch (commandArgs[0]) {
-                case "exit":
+            int choice = scan.nextInt();
+            // Consume \n
+            scan.nextLine();
+            switch (choice) {
+                case 1:
+                    openAccount();
+                    break;
+                case 2:
+                    sendAmount();
+                    break;
+                case 3:
+                    receiveAmount();
+                    break;
+                case 4:
+                    checkAccount();
+                    break;
+                case 5:
+                    audit();
+                    break;
+                case 6:
                     client.shutdown();
                     return;
-                case "open_account":
-                    try {
-                        if (commandArgs.length != 1) {
-                            System.out.println("Wrong number of arguments");
-                        } else {
-                            openAccount();
-                        }
-                    } catch (FailedChallengeException e) {
-                        e.printStackTrace();
-                    } catch (SignatureException e) {
-                        e.printStackTrace();
-                    } catch (InvalidKeyException e) {
-                        e.printStackTrace();
-                    } catch (FailedAuthenticationException e) {
-                        e.printStackTrace();
-                    }
-                    break;
-                case "send_amount":
-                    if (commandArgs.length != 3) {
-                        System.out.println("Not enough arguments");
-                    } else {
-                        try {
-                            PublicKey destination = (PublicKey) Crypto.readKey(commandArgs[1], "pub");
-                            sendAmount(destination, commandArgs[2]);
-                        } catch (WrongNonceException | FailedChallengeException e) {
-                            e.printStackTrace();
-                        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException e) {
-                            e.printStackTrace();
-                        } catch (SignatureException e) {
-                            e.printStackTrace();
-                        } catch (InvalidKeyException e) {
-                            e.printStackTrace();
-                        } catch (FailedAuthenticationException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    break;
-                case "check_account":
-                    if (commandArgs.length != 2) {
-                        System.out.println("Not enough arguments");
-                    } else {
-                        try {
-                            PublicKey account = (PublicKey) Crypto.readKey(commandArgs[1], "pub");
-                            checkAccount(account);
-                        } catch (IOException | NoSuchAlgorithmException | InvalidKeySpecException
-                                | FailedChallengeException | FailedAuthenticationException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    break;
                 default:
-                    System.out.println("Unknown Command");
+                    System.out.println("Invalid choice");
             }
         }
     }
 
-    public static void main(String[] args) throws FileNotFoundException, IOException, CertificateException {
-        // check arguments
-        if (args.length < 4) {
-            System.err.println("Argument(s) missing!");
+    private void negotiateNonce() throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
+        if (nonce != null)
             return;
-        }
+        Bank.NonceNegotiationResponse response = client.nonceNegotiation(keyManager.getKey(), publicKey);
+        nonce = Nonce.decode(response.getNonce());
+    }
 
-        final String host = args[0];
-        final int port = Integer.parseInt(args[1]);
-        final String target = host + ":" + port;
-        final String keyStorePath = args[2];
-        final String keyStorePassword = args[3];
-
-        Scanner scan = new Scanner(System.in);
-        KeyManager km;
-        String keyPassword = "0";
-
-        System.out.println("Enter key name: ");
-        String name = scan.nextLine();
-        // System.out.println("Enter public key file location: ");
-        // String publicKeyFile = scan.nextLine();
-
+    private void openAccount() {
         try {
-            km = new KeyManager(name, keyStorePath, keyPassword.toCharArray(), keyStorePassword.toCharArray());
-        } catch (UnexistingKeyException | IOException e) {
-            System.out.println("Enter private key file location: ");
-            String privateKeyFile = scan.nextLine();
-            System.out.println("Enter certificate file location: ");
-            String certFile = scan.nextLine();
-
-            km = new KeyManager(privateKeyFile, keyStorePath, keyPassword.toCharArray(),
-                    keyStorePassword.toCharArray(), name, certFile);
+            Bank.OpenAccountResponse response = client.openAccount(keyManager.getKey(), publicKey);
+            System.out.println("Response: " + response.getStatus().name());
+        } catch (FailedChallengeException | SignatureException | InvalidKeyException | FailedAuthenticationException e) {
+            System.out.println("Error: " + e.getMessage());
         }
+    }
 
-        System.out.println("Enter server public key file location: ");
-        String serverPublicKeyFile = scan.nextLine();
+    private void sendAmount() {
+        try {
+            System.out.println("Enter file with receiver public key");
+            System.out.print("> ");
+            System.out.flush();
+            PublicKey receiverPublicKey = (PublicKey) Crypto.readKeyOrExit(scan.nextLine(), "pub");
+            System.out.println("Enter the amount to send");
+            System.out.print("> ");
+            System.out.flush();
+            int amount = scan.nextInt();
+            // Consume \n
+            scan.nextLine();
 
-        InteractiveClient client = new InteractiveClient(target, serverPublicKeyFile, km);
-        client.run();
+            negotiateNonce();
+            Bank.SendAmountResponse response = client.sendAmount(keyManager.getKey(), publicKey, receiverPublicKey, Integer.toString(amount), nonce);
+
+            nonce = Nonce.decode(response.getNonce());
+
+            System.out.println("Response: " + response.getStatus().name());
+        } catch (FailedChallengeException | SignatureException | InvalidKeyException | FailedAuthenticationException | WrongNonceException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    private void receiveAmount() {
+        try {
+            System.out.println("Enter file with sender public key");
+            System.out.print("> ");
+            System.out.flush();
+            PublicKey senderPublicKey = (PublicKey) Crypto.readKeyOrExit(scan.nextLine(), "pub");
+            System.out.println("Enter the amount to receive");
+            System.out.print("> ");
+            System.out.flush();
+            int amount = scan.nextInt();
+            // Consume \n
+            scan.nextLine();
+
+            negotiateNonce();
+            Bank.ReceiveAmountResponse response = client.receiveAmount(keyManager.getKey(), senderPublicKey, publicKey, Integer.toString(amount), true, nonce);
+
+            nonce = Nonce.decode(response.getNonce());
+
+            System.out.println("Response: " + response.getStatus().name());
+        } catch (WrongNonceException | FailedChallengeException | SignatureException  | InvalidKeyException | FailedAuthenticationException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    private void checkAccount() {
+        try {
+            System.out.println("Enter file with public key to check (empty for self)");
+            System.out.print("> ");
+            System.out.flush();
+            String file = scan.nextLine();
+            PublicKey keyToCheck;
+            if (file.isEmpty()) {
+                keyToCheck = publicKey;
+            } else {
+                keyToCheck = (PublicKey) Crypto.readKeyOrExit(file, "pub");
+            }
+            Bank.CheckAccountResponse response = client.checkAccount(keyToCheck);
+            System.out.println("Response: " + response.getStatus().name());
+
+            if (response.getStatus() == Bank.CheckAccountResponse.Status.SUCCESS) {
+                System.out.println("Balance: " + response.getBalance());
+                for (Bank.NonRepudiableTransaction transaction : response.getTransactionsList()) {
+                    System.out.println("Transaction: " + transaction.getTransaction().getAmount() + " from " +
+                            Crypto.keyAsShortString(Crypto.decodePublicKey(transaction.getTransaction().getSourcePublicKey())) + " to " +
+                            Crypto.keyAsShortString(Crypto.decodePublicKey(transaction.getTransaction().getDestinationPublicKey())));
+                }
+            }
+        } catch (FailedChallengeException | FailedAuthenticationException e) {
+            System.out.println("Error: " + e.getMessage());
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            System.out.println("Server sent misformatted publickey");
+            e.printStackTrace();
+        }
+    }
+
+    private void audit() {
+        try {
+            System.out.println("Enter file with public key to audit (empty for self)");
+            System.out.print("> ");
+            System.out.flush();
+            String file = scan.nextLine();
+            PublicKey keyToAudit;
+            if (file.isEmpty()) {
+                keyToAudit = publicKey;
+            } else {
+                keyToAudit = (PublicKey) Crypto.readKeyOrExit(file, "pub");
+            }
+            Bank.AuditResponse response = client.audit(keyToAudit);
+            System.out.println("Response: " + response.getStatus().name());
+
+            if (response.getStatus() == Bank.AuditResponse.Status.SUCCESS) {
+                for (Bank.NonRepudiableTransaction transaction : response.getTransactionsList()) {
+                    System.out.println("Transaction: " + transaction.getTransaction().getAmount() + " from " +
+                            Crypto.keyAsShortString(Crypto.decodePublicKey(transaction.getTransaction().getSourcePublicKey())) + " to " +
+                            Crypto.keyAsShortString(Crypto.decodePublicKey(transaction.getTransaction().getDestinationPublicKey())));
+                }
+            }
+        } catch (FailedChallengeException | FailedAuthenticationException e) {
+            System.out.println("Error: " + e.getMessage());
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            System.out.println("Server sent misformatted publickey");
+            e.printStackTrace();
+        }
     }
 }

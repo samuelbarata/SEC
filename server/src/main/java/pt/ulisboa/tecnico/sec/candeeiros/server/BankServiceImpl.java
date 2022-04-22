@@ -307,7 +307,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 		responseObserver.onNext(response.build());
 		responseObserver.onCompleted();
-		logger.info("Open Account Finished");
+		logger.info("Send Amount Finished");
 		/*synchronized (bank) {
 			Bank.SendAmountResponse.Status status = sendAmountStatus(request);
 
@@ -438,7 +438,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 		responseObserver.onNext(response.build());
 		responseObserver.onCompleted();
-		logger.info("Open Account Finished");
+		logger.info("Receive Amount Finished");
 		/*synchronized (bank) {
 			Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request);
 
