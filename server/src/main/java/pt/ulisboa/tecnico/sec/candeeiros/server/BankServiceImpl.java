@@ -1,10 +1,14 @@
 package pt.ulisboa.tecnico.sec.candeeiros.server;
 
 import com.google.protobuf.ByteString;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import pt.ulisboa.tecnico.sec.candeeiros.BankServiceGrpc;
+import pt.ulisboa.tecnico.sec.candeeiros.SyncBanks;
+import pt.ulisboa.tecnico.sec.candeeiros.SyncBanksServiceGrpc;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.BankAccount;
 import pt.ulisboa.tecnico.sec.candeeiros.server.model.Transaction;
 import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
@@ -19,55 +23,103 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
 	private final BftBank bank;
 	private final KeyManager keyManager;
+	private final List<String> SyncBanksTargets;
 
-	public BankServiceImpl(String ledgerFileName, KeyManager keyManager) throws IOException {
+	private final ArrayList<ManagedChannel> SyncBanksManagedChannels;
+	private final ArrayList<SyncBanksServiceGrpc.SyncBanksServiceBlockingStub> SyncBanksStubs;
+
+	private final ConcurrentHashMap<Integer, Bank.OpenAccountResponse> OpenAccountResponses;
+	private final ConcurrentHashMap<Integer, Bank.SendAmountResponse> SendAmountResponses;
+	private final ConcurrentHashMap<Integer, Bank.ReceiveAmountResponse> ReceiveAmountResponses;
+
+	private int timestamp;
+
+	public BankServiceImpl(String ledgerFileName, KeyManager keyManager, String SyncBankTarget) throws IOException {
 		super();
 		bank = new BftBank(ledgerFileName);
-
 		this.keyManager = keyManager;
+		this.SyncBanksManagedChannels = new ArrayList<>();
+		this.SyncBanksTargets = new ArrayList<>();
+		this.SyncBanksStubs = new ArrayList<>();
+		this.SyncBanksTargets.add(SyncBankTarget);
+
+		this.OpenAccountResponses = new ConcurrentHashMap<>();
+		this.SendAmountResponses = new ConcurrentHashMap<>();
+		this.ReceiveAmountResponses = new ConcurrentHashMap<>();
+		CreateStubs();
+
+		this.timestamp = 0;
 	}
 
-	// ***** Authenticated procedures *****
-	private Bank.OpenAccountResponse.Status openAccountStatus(Bank.OpenAccountRequest request) {
-		try {
-			if (!request.hasSignature() || !request.hasChallengeNonce() || !request.hasPublicKey())
-				return Bank.OpenAccountResponse.Status.INVALID_MESSAGE_FORMAT;
-
-			if (!Signatures.verifyOpenAccountRequestSignature(
-					request.getSignature().getSignatureBytes().toByteArray(),
-					Crypto.decodePublicKey(request.getPublicKey()),
-					request.getChallengeNonce().getNonceBytes().toByteArray(),
-					request.getPublicKey().getKeyBytes().toByteArray()
-			))
-				return Bank.OpenAccountResponse.Status.INVALID_SIGNATURE;
-
-			PublicKey publicKey = Crypto.decodePublicKey(request.getPublicKey());
-			if (bank.accountExists(publicKey))
-				return Bank.OpenAccountResponse.Status.ALREADY_EXISTED;
-			return Bank.OpenAccountResponse.Status.SUCCESS;
-		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-			return Bank.OpenAccountResponse.Status.KEY_FAILURE;
+	public void CreateStubs() {
+		ManagedChannel channel;
+		for(String target: SyncBanksTargets)
+		{
+			channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
+			SyncBanksManagedChannels.add(channel);
+			SyncBanksStubs.add(SyncBanksServiceGrpc.newBlockingStub(channel));
 		}
 	}
 
+	// ***** Authenticated procedures *****
+
 	@Override
 	public void openAccount(Bank.OpenAccountRequest request, StreamObserver<Bank.OpenAccountResponse> responseObserver) {
-		synchronized (bank) {
-			Bank.OpenAccountResponse.Status status = openAccountStatus(request);
+		int currentTS = timestamp;
+		SyncBanks.OpenAccountIntentRequest.Builder intentRequest = SyncBanks.OpenAccountIntentRequest.newBuilder();
+		intentRequest.setOpenAccountRequest(request);
+		intentRequest.setTimestamp(timestamp);
+		// send intents to all servers
+		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+		{
+			logger.info("Bank Service: Sent Open Account Sync");
+			stub.openAccountSync(intentRequest.build());
+		}
+		timestamp++;
+		logger.info("Bank Service: Waiting for Open Account Response");
+		while (OpenAccountResponses.get(currentTS)==null) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		Bank.OpenAccountResponse responseSync = OpenAccountResponses.get(currentTS);
+		Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder().setStatus(responseSync.getStatus());
+		response.setChallengeNonce(request.getChallengeNonce());
+		try{
+			response.setSignature(Bank.Signature.newBuilder()
+					.setSignatureBytes(ByteString.copyFrom(Signatures.signOpenAccountResponse(keyManager.getKey(),
+							request.getChallengeNonce().getNonceBytes().toByteArray(),
+							responseSync.getStatus().name())))
+					.build());
+		} catch (InvalidKeyException | SignatureException e) {
+			// Should never happen
+			e.printStackTrace();
+		}
+
+
+		responseObserver.onNext(response.build());
+		responseObserver.onCompleted();
+		logger.info("Open Account Finished");
+
+			/*Bank.OpenAccountResponse.Status status = openAccountStatus(request);
 
 			logger.info("Got request to open account. Status: {}", status);
 
-			Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder()
+				Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder()
 					.setStatus(status);
 
 			switch (status) {
@@ -101,11 +153,15 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 				e.printStackTrace();
 			}
 			responseObserver.onNext(response.build());
-			responseObserver.onCompleted();
-		}
+			responseObserver.onCompleted();*/
 	}
 
-
+	@Override
+	public void openAccountSyncRequest(Bank.OpenAccountSync request, StreamObserver<Bank.Ack> responseObserver) {
+		logger.info("Got Sync Request: " + request.getTimestamp());
+		Bank.OpenAccountResponse response = request.getOpenAccountResponse();
+		OpenAccountResponses.put(request.getTimestamp(), response);
+	}
 
 	private Bank.NonceNegotiationResponse.Status nonceNegotiationStatus(Bank.NonceNegotiationRequest request) {
 		try {
@@ -126,7 +182,12 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void nonceNegotiation(Bank.NonceNegotiationRequest request, StreamObserver<Bank.NonceNegotiationResponse> responseObserver) {
-		synchronized (bank) {
+		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+		{
+			responseObserver.onNext(stub.nonceNegotiation(request));
+			responseObserver.onCompleted();
+		}
+		/*synchronized (bank) {
 			Bank.NonceNegotiationResponse.Status status = nonceNegotiationStatus(request);
 			Bank.NonceNegotiationResponse.Builder response = Bank.NonceNegotiationResponse.newBuilder().setStatus(status);
 
@@ -167,7 +228,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
-		}
+		}*/
 	}
 
 
@@ -211,7 +272,43 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void sendAmount(Bank.SendAmountRequest request, StreamObserver<Bank.SendAmountResponse> responseObserver) {
-		synchronized (bank) {
+		int currentTS = timestamp;
+		SyncBanks.SendAmountIntentRequest.Builder intentRequest = SyncBanks.SendAmountIntentRequest.newBuilder();
+		intentRequest.setSendAmountRequest(request);
+		intentRequest.setTimestamp(timestamp);
+		// send intents to all servers
+		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+		{
+			stub.sendAmountSync(intentRequest.build());
+		}
+		timestamp++;
+
+		while (SendAmountResponses.get(currentTS)==null) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		Bank.SendAmountResponse responseSync = SendAmountResponses.get(currentTS);
+		Bank.SendAmountResponse.Builder response = Bank.SendAmountResponse.newBuilder().setStatus(responseSync.getStatus());
+		response.setNonce(request.getNonce());
+		try{
+			response.setSignature(Bank.Signature.newBuilder()
+					.setSignatureBytes(ByteString.copyFrom(Signatures.signSendAmountResponse(keyManager.getKey(),
+							request.getNonce().getNonceBytes().toByteArray(),
+							responseSync.getStatus().name())))
+					.build());
+		} catch (InvalidKeyException | SignatureException e) {
+			// Should never happen
+			e.printStackTrace();
+		}
+
+
+		responseObserver.onNext(response.build());
+		responseObserver.onCompleted();
+		logger.info("Open Account Finished");
+		/*synchronized (bank) {
 			Bank.SendAmountResponse.Status status = sendAmountStatus(request);
 
 			logger.info("Got request to create transaction. Status: {}", status);
@@ -261,10 +358,15 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
-		}
+		}*/
 	}
 
-
+	@Override
+	public void sendAmountSyncRequest(Bank.SendAmountSync request, StreamObserver<Bank.Ack> responseObserver) {
+		logger.info("Got Sync Request: " + request.getTimestamp());
+		Bank.SendAmountResponse response = request.getSendAmountResponse();
+		SendAmountResponses.put(request.getTimestamp(), response);
+	}
 
 	private Bank.ReceiveAmountResponse.Status receiveAmountStatus(Bank.ReceiveAmountRequest request) {
 		try {
@@ -302,7 +404,42 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void receiveAmount(Bank.ReceiveAmountRequest request, StreamObserver<Bank.ReceiveAmountResponse> responseObserver) {
-		synchronized (bank) {
+		int currentTS = timestamp;
+		SyncBanks.ReceiveAmountIntentRequest.Builder intentRequest = SyncBanks.ReceiveAmountIntentRequest.newBuilder();
+		intentRequest.setReceiveAmountRequest(request);
+		intentRequest.setTimestamp(timestamp);
+		// send intents to all servers
+		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+		{
+			stub.receiveAmountSync(intentRequest.build());
+		}
+		timestamp++;
+		while (ReceiveAmountResponses.get(currentTS)==null) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		Bank.ReceiveAmountResponse responseSync = ReceiveAmountResponses.get(currentTS);
+		Bank.ReceiveAmountResponse.Builder response = Bank.ReceiveAmountResponse.newBuilder().setStatus(responseSync.getStatus());
+		response.setNonce(request.getNonce());
+		try{
+			response.setSignature(Bank.Signature.newBuilder()
+					.setSignatureBytes(ByteString.copyFrom(Signatures.signReceiveAmountResponse(keyManager.getKey(),
+							request.getNonce().getNonceBytes().toByteArray(),
+							responseSync.getStatus().name())))
+					.build());
+		} catch (InvalidKeyException | SignatureException e) {
+			// Should never happen
+			e.printStackTrace();
+		}
+
+
+		responseObserver.onNext(response.build());
+		responseObserver.onCompleted();
+		logger.info("Open Account Finished");
+		/*synchronized (bank) {
 			Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request);
 
 			logger.info("Got request to accept transaction. Status: {}", status);
@@ -363,10 +500,15 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
-		}
+		}*/
 	}
 
-
+	@Override
+	public void receiveAmountSyncRequest(Bank.ReceiveAmountSync request, StreamObserver<Bank.Ack> responseObserver) {
+		logger.info("Got Sync Request: " + request.getTimestamp());
+		Bank.ReceiveAmountResponse response = request.getReceiveAmountResponse();
+		ReceiveAmountResponses.put(request.getTimestamp(), response);
+	}
 
 	// ***** Unauthenticated procedures *****
 	private Bank.CheckAccountResponse.Status checkAccountStatus(Bank.CheckAccountRequest request) {
@@ -385,7 +527,14 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void checkAccount(Bank.CheckAccountRequest request, StreamObserver<Bank.CheckAccountResponse> responseObserver) {
-		synchronized (bank) {
+
+		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+		{
+			responseObserver.onNext(stub.checkAccount(request));
+			responseObserver.onCompleted();
+		}
+
+		/*synchronized (bank) {
 			Bank.CheckAccountResponse.Status status = checkAccountStatus(request);
 			logger.info("Got check account. Status: {}", status);
 
@@ -449,7 +598,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
-		}
+		}*/
 	}
 
 
@@ -470,7 +619,12 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void audit(Bank.AuditRequest request, StreamObserver<Bank.AuditResponse> responseObserver) {
-		synchronized (bank) {
+		for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
+		{
+			responseObserver.onNext(stub.audit(request));
+			responseObserver.onCompleted();
+		}
+		/*synchronized (bank) {
 			Bank.AuditResponse.Status status = auditStatus(request);
 
 			logger.info("Got request to audit account. Status {}", status.name());
@@ -535,8 +689,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 			responseObserver.onNext(response.build());
 			responseObserver.onCompleted();
-		}
+		}*/
 	}
-
-
 }

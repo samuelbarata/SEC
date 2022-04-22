@@ -13,6 +13,8 @@
               <option value="clean" />
               <option value="compile" />
               <option value="exec:java" />
+              <option value="-Dserver.id=0" />
+              <option value="-DtotalServers=1" />
             </list>
           </option>
           <option name="pomFileName" />
