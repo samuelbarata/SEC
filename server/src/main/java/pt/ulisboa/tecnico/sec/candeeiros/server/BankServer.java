@@ -33,18 +33,18 @@ public class BankServer {
 		}
 
 		int port = Integer.parseInt(args[0]);
-		int id = Integer.parseInt(args[5]);
-		int totalServers = Integer.parseInt(args[6]);
 		String ledgeFileName = args[1];
 		String key_path = args[2];
 		String keyStore_path = args[3];
 		String cert_path = args[4];
-		String server_name = args[5];
+		int id = Integer.parseInt(args[5]);
+		int totalServers = Integer.parseInt(args[6]);
+		String server_name = args[7];
 
 		keyManager = new KeyManager(key_path, keyStore_path, "0".toCharArray(), "0".toCharArray(), server_name + "key",
 				cert_path);
 
-		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager, id);
+		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager, "localhost:" + (port + id));
 		final BindableService implSync = (BindableService) new SyncBanksServiceImpl(ledgeFileName, keyManager, totalServers, "localhost:" + (4200 + id), port);
 
 		// Create a new server to listen on port.
