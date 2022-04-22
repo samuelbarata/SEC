@@ -21,9 +21,9 @@ server: contract shared cert
 	cd server;\
 	mvn exec:java
 
-client $(id): contract shared
+client $(id) $(connect_to): contract shared
 	cd client;\
-		mvn exec:java -Dexec.args="localhost 4200 ./client.ks a client$(id) 0 ./keys/server/id.pub ./keys/$(id)/private_key.der ./keys/$(id)/certificate.crt"
+		mvn exec:java -Dexec.args="localhost $(connect_to) ./client.ks a client$(id) 0 ./keys/server/id.pub ./keys/$(id)/private_key.der ./keys/$(id)/certificate.crt"
 
 test: 
 	cd client;\
@@ -67,7 +67,7 @@ checkServerKeyStore:
 
 checkClientKeyStore:
 	@cd client;\
-	echo "0" | keytool -list -keystore client.ks | grep PrivateKeyEntry
+	echo "a" | keytool -list -keystore client.ks | grep PrivateKeyEntry
 
 clean:
 	@mvn clean
