@@ -61,7 +61,7 @@ public class openAccountIntent {
     }
 
     public boolean hasMajority(int totalServers) {
-        return occurrences.get(majority) >= (Math.ceil(totalServers/2));
+        return occurrences.get(majority) >= (Math.ceil((double)totalServers/2));
     }
 
     public Bank.OpenAccountResponse.Status getMajority() {

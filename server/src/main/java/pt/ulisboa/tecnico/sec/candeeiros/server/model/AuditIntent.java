@@ -32,7 +32,7 @@ public class AuditIntent {
             majority = timestamp;
         }
 
-        return occurrences.get(majority) >= (Math.ceil(totalServers / 2));
+        return occurrences.get(majority) >= (Math.ceil((double)totalServers / 2));
     }
 
     public Bank.AuditResponse getMajority() {

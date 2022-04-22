@@ -58,8 +58,9 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
     //***
     private final int totalServers;
+    private final int port;
 
-    SyncBanksServiceImpl(String ledgerFileName, KeyManager keyManager, int totalServers, String bankTarget) throws IOException {
+    SyncBanksServiceImpl(String ledgerFileName, KeyManager keyManager, int totalServers, String bankTarget, int port) throws IOException {
         super();
         timestamp = 0;
         this.bank = new BftBank(ledgerFileName);
@@ -76,7 +77,6 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         this.SyncBanksManagedChannels = new ArrayList<>();
         this.SyncBanksTargets = new ArrayList<>();
-        this.SyncBanksTargets.add(bankTarget);
         this.SyncBanksStubs = new ArrayList<>();
 
         this.openAppliedCounter = new HashMap<>();
@@ -84,13 +84,18 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         this.receiveAmountAppliedCounter = new HashMap<>();
 
         this.totalServers = totalServers;
+        this.port = port;
         this.keyManager = keyManager;
         CreateStubs();
-        System.out.println(Math.ceil(totalServers/2));
+        System.out.println(Math.ceil((double)totalServers/2));
     }
 
     public void CreateStubs()
     {
+        for(int i=0;i<this.totalServers; i++) {
+            this.SyncBanksTargets.add("localhost:" + (port + i));
+            logger.info("Added SyncServer localhost:" + (port+i));
+        }
         ManagedChannel channel;
 
         for(String target: SyncBanksTargets) {
@@ -225,7 +230,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         // add to applied array of this open account applied
         openAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
-        if(openAppliedCounter.get(request)>=(Math.ceil(totalServers/2))) {
+        if(openAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
             System.out.println("Open Account: Applied Majority");
             // if so, send to client the requests result
             Bank.OpenAccountSync.Builder syncResponse = Bank.OpenAccountSync.newBuilder();
@@ -375,7 +380,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         // add to applied array of this send amount applied
         sendAmountAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
-        if(sendAmountAppliedCounter.get(request)>=(Math.ceil(totalServers/2))) {
+        if(sendAmountAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
             System.out.println("Send Amount: Applied Majority");
             // if so, send to client the requests result
             Bank.SendAmountSync.Builder syncResponse = Bank.SendAmountSync.newBuilder();
@@ -530,7 +535,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         // add to applied array of this send amount applied
         receiveAmountAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
-        if(receiveAmountAppliedCounter.get(request)>=(Math.ceil(totalServers/2))) {
+        if(receiveAmountAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
             System.out.println("Receive Amount: Applied Majority");
             // if so, send to client the requests result
             Bank.ReceiveAmountSync.Builder syncResponse = Bank.ReceiveAmountSync.newBuilder();

@@ -46,14 +46,14 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	private int timestamp;
 
-	public BankServiceImpl(String ledgerFileName, KeyManager keyManager) throws IOException {
+	public BankServiceImpl(String ledgerFileName, KeyManager keyManager, String SyncBankTarget) throws IOException {
 		super();
 		bank = new BftBank(ledgerFileName);
 		this.keyManager = keyManager;
 		this.SyncBanksManagedChannels = new ArrayList<>();
 		this.SyncBanksTargets = new ArrayList<>();
 		this.SyncBanksStubs = new ArrayList<>();
-		this.SyncBanksTargets.add("localhost:4200");
+		this.SyncBanksTargets.add(SyncBankTarget);
 
 		this.OpenAccountResponses = new ConcurrentHashMap<>();
 		this.SendAmountResponses = new ConcurrentHashMap<>();
