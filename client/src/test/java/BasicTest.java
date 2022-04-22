@@ -26,6 +26,16 @@ class BasicTest {
     private static Nonce nonce1, nonce2;
     private static String keyStoreFile = "testsKeyStore.ts";
 
+
+    private void lightSwitchProtection() throws InterruptedException{
+        Thread.sleep(1000);
+    }
+
+    @AfterEach
+    void sleepper() throws InterruptedException {
+        lightSwitchProtection();
+    }
+
     @BeforeAll
     static void startup() {
         String target = System.getProperty("target");
@@ -55,7 +65,7 @@ class BasicTest {
     @Test
     @Order(1)
     void createAccountTest()
-            throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException {
+            throws FailedChallengeException, FailedAuthenticationException, SignatureException, InvalidKeyException, InterruptedException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
 
@@ -75,7 +85,7 @@ class BasicTest {
     @Test
     @Order(2)
     void sendAmountTest() throws FailedChallengeException, SignatureException, InvalidKeyException,
-            FailedAuthenticationException, WrongNonceException, NoSuchAlgorithmException, InvalidKeySpecException {
+            FailedAuthenticationException, WrongNonceException, NoSuchAlgorithmException, InvalidKeySpecException, InterruptedException {
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
         NonceNegotiationResponse nonceNegotiationResponse;
@@ -115,7 +125,7 @@ class BasicTest {
     @Test
     @Order(3)
     void acceptAmountTest() throws WrongNonceException, SignatureException, InvalidKeyException,
-            FailedAuthenticationException, FailedChallengeException {
+            FailedAuthenticationException, FailedChallengeException, InterruptedException {
         CheckAccountResponse checkAccountResponse;
         ReceiveAmountResponse receiveAmountResponse;
 
@@ -134,7 +144,7 @@ class BasicTest {
     @Test
     @Order(4)
     void rejectAmountTest() throws WrongNonceException, SignatureException, InvalidKeyException,
-            FailedAuthenticationException, FailedChallengeException {
+            FailedAuthenticationException, FailedChallengeException, InterruptedException {
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;
         ReceiveAmountResponse receiveAmountResponse;
@@ -164,7 +174,7 @@ class BasicTest {
     @Test
     @Order(5)
     void auditTest() throws FailedChallengeException, SignatureException, InvalidKeyException,
-            FailedAuthenticationException, NoSuchAlgorithmException, InvalidKeySpecException {
+            FailedAuthenticationException, NoSuchAlgorithmException, InvalidKeySpecException, InterruptedException {
         AuditResponse auditResponse;
 
         // Check both accounts audits
@@ -192,7 +202,7 @@ class BasicTest {
     @Test
     @Order(6)
     void incorrectUsageTest() throws WrongNonceException, FailedChallengeException, FailedAuthenticationException,
-            SignatureException, InvalidKeyException {
+            SignatureException, InvalidKeyException, InterruptedException {
         OpenAccountResponse openAccountResponse;
         CheckAccountResponse checkAccountResponse;
         SendAmountResponse sendAmountResponse;

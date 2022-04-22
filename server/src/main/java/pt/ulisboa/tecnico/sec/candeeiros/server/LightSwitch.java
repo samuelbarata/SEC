@@ -3,24 +3,32 @@ package pt.ulisboa.tecnico.sec.candeeiros.server;
 import java.security.PublicKey;
 import java.time.LocalDateTime;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import pt.ulisboa.tecnico.sec.candeeiros.shared.Crypto;
 
 public class LightSwitch {
+    private static final Logger logger = LoggerFactory.getLogger(LightSwitch.class);
     ConcurrentHashMap<PublicKey, LocalDateTime> chandelier = new ConcurrentHashMap<>();
+    private static final long lightSpeed = 100000000;
 
     public LightSwitch() {
         this.chandelier = new ConcurrentHashMap<>();
     }
 
     public boolean isLightOn(PublicKey lamp) {
-        if(!chandelier.containsKey(lamp)) {
-            chandelier.put(lamp, LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        if (!chandelier.containsKey(lamp)) {
+            chandelier.put(lamp, now);
             return true;
         }
-        if(chandelier.get(lamp).isAfter(LocalDateTime.now().minusNanos(10000000))) {
-            chandelier.put(lamp, LocalDateTime.now());
+        if (chandelier.get(lamp).plusNanos(lightSpeed).isBefore(now)) { // 100ms
+            chandelier.put(lamp, now);
             return true;
         } else {
-            chandelier.put(lamp, LocalDateTime.now());
+            chandelier.put(lamp, now);
+            logger.info("Blocked request from: {} at {}", Crypto.keyAsShortString(lamp), now.toString());
             return false;
         }
     }

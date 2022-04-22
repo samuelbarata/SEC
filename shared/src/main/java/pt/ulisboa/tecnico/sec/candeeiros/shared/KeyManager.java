@@ -48,7 +48,7 @@ public class KeyManager {
         this.keystore = getKeystore();
         try (FileInputStream keyStoreData = new FileInputStream(keyStoreFile)) {
             // open existing keystore
-            logger.info("Importing Existing KeyStore");
+            logger.debug("Importing Existing KeyStore");
             keystore.load(keyStoreData, keyStorePassword);
             if (!keystore.containsAlias(alias)) {
                 throw new UnexistingKeyException();
@@ -71,7 +71,7 @@ public class KeyManager {
 
         try (FileInputStream keyStoreData = new FileInputStream(keyStoreFile)) {
             // open existing keystore
-            logger.info("Importing Existing KeyStore");
+            logger.debug("Importing Existing KeyStore");
             try {
                 keystore.load(keyStoreData, keyStorePassword);
                 loadNewKey = !keystore.containsAlias(alias);
@@ -82,7 +82,7 @@ public class KeyManager {
             }
         } catch (IOException e) {
             // importing new keypair
-            logger.info("Creating new KeyStore");
+            logger.debug("Creating new KeyStore");
             try {
                 keystore.load(null, keyStorePassword);
                 loadNewKey = true;
@@ -93,7 +93,7 @@ public class KeyManager {
             }
         }
         if (loadNewKey) {
-            logger.info("importing new RSA key pair into KeyStore");
+            logger.debug("importing new RSA key pair into KeyStore");
             PrivateKey pk = (PrivateKey) Crypto.privateKeyFromFileOrExit(keyFile);
 
             X509Certificate cert = Crypto.readCertOrExit(certFile);
@@ -116,7 +116,7 @@ public class KeyManager {
     }
 
     private void saveKeystore() throws FileNotFoundException, IOException {
-        logger.info("Saving KeyStore");
+        logger.debug("Saving KeyStore");
         try (FileOutputStream keyStoreOutputStream = new FileOutputStream(keyStoreFile)) {
             try {
                 keystore.store(keyStoreOutputStream, keyStorePassword);

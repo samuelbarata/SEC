@@ -44,9 +44,12 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private final ConcurrentHashMap<Integer, Bank.SendAmountResponse> SendAmountResponses;
 	private final ConcurrentHashMap<Integer, Bank.ReceiveAmountResponse> ReceiveAmountResponses;
 
+	private final LightSwitch lightSwitch;
+
 	private int timestamp;
 
-	public BankServiceImpl(String ledgerFileName, KeyManager keyManager, String SyncBankTarget) throws IOException {
+	public BankServiceImpl(String ledgerFileName, KeyManager keyManager, String SyncBankTarget, LightSwitch lswitch)
+			throws IOException {
 		super();
 		bank = new BftBank(ledgerFileName);
 		this.keyManager = keyManager;
@@ -58,6 +61,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		this.OpenAccountResponses = new ConcurrentHashMap<>();
 		this.SendAmountResponses = new ConcurrentHashMap<>();
 		this.ReceiveAmountResponses = new ConcurrentHashMap<>();
+
+		this.lightSwitch = lswitch;
 		CreateStubs();
 
 		this.timestamp = 0;
@@ -72,11 +77,30 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		}
 	}
 
+	private boolean blockRequest(PublicKey pubKey, StreamObserver<?> responseObserver) {
+		if (!lightSwitch.isLightOn(pubKey)) {
+			responseObserver.onError(new RuntimeException("Blocked by DDOS protection"));
+			return true;
+		}
+		return false;
+	}
+
 	// ***** Authenticated procedures *****
 
 	@Override
 	public void openAccount(Bank.OpenAccountRequest request,
 			StreamObserver<Bank.OpenAccountResponse> responseObserver) {
+
+		// DOS protections
+		try {
+			PublicKey pubKey = Crypto.decodePublicKey(request.getPublicKey());
+			if (blockRequest(pubKey, responseObserver))
+				return;
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			e.printStackTrace();
+			return;
+		}
+
 		int currentTS = timestamp;
 		SyncBanks.OpenAccountIntentRequest.Builder intentRequest = SyncBanks.OpenAccountIntentRequest.newBuilder();
 		intentRequest.setOpenAccountRequest(request);
@@ -282,6 +306,17 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void sendAmount(Bank.SendAmountRequest request, StreamObserver<Bank.SendAmountResponse> responseObserver) {
+
+		// DOS protections
+		try {
+			PublicKey pubKey = Crypto.decodePublicKey(request.getTransaction().getSourcePublicKey());
+			if (blockRequest(pubKey, responseObserver))
+				return;
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			e.printStackTrace();
+			return;
+		}
+
 		int currentTS = timestamp;
 		SyncBanks.SendAmountIntentRequest.Builder intentRequest = SyncBanks.SendAmountIntentRequest.newBuilder();
 		intentRequest.setSendAmountRequest(request);
@@ -422,6 +457,17 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	@Override
 	public void receiveAmount(Bank.ReceiveAmountRequest request,
 			StreamObserver<Bank.ReceiveAmountResponse> responseObserver) {
+
+		// DOS protections
+		try {
+			PublicKey pubKey = Crypto.decodePublicKey(request.getTransaction().getDestinationPublicKey());
+			if (blockRequest(pubKey, responseObserver))
+				return;
+		} catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+			e.printStackTrace();
+			return;
+		}
+
 		int currentTS = timestamp;
 		SyncBanks.ReceiveAmountIntentRequest.Builder intentRequest = SyncBanks.ReceiveAmountIntentRequest.newBuilder();
 		intentRequest.setReceiveAmountRequest(request);

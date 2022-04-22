@@ -25,6 +25,15 @@ public class CrashTest {
     private static ArrayList<KeyManager> km = new ArrayList<>();
     private static String keyStoreFile = "testsKeyStore.ts";
 
+    private void lightSwitchProtection() throws InterruptedException{
+        Thread.sleep(1000);
+    }
+
+    @AfterEach
+    void sleepper() throws InterruptedException {
+        lightSwitchProtection();
+    }
+
     @BeforeAll
     static void startup() {
         String target = System.getProperty("target");

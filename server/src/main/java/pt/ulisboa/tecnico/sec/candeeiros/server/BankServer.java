@@ -44,8 +44,12 @@ public class BankServer {
 		keyManager = new KeyManager(key_path, keyStore_path, "0".toCharArray(), "0".toCharArray(), server_name + "key",
 				cert_path);
 
-		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager, "localhost:" + (port + id));
-		final BindableService implSync = (BindableService) new SyncBanksServiceImpl(ledgeFileName, keyManager, totalServers, "localhost:" + (4200 + id), port);
+		final LightSwitch lSwitch = new LightSwitch();
+
+		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager,
+				"localhost:" + (port + id), lSwitch);
+		final BindableService implSync = (BindableService) new SyncBanksServiceImpl(ledgeFileName, keyManager,
+				totalServers, "localhost:" + (4200 + id), port);
 
 		// Create a new server to listen on port.
 		Server server = ServerBuilder.forPort(port).addService(impl).addService(implSync).build();
