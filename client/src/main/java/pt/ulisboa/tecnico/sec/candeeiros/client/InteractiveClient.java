@@ -51,19 +51,22 @@ public class InteractiveClient {
         KeyManager keyManager;
 
         try {
+            keyManager = new KeyManager(keyName, keyStorePath, keyPassword.toCharArray(),
+                    keyStorePassword.toCharArray());
             System.out.println("Found key in keystore. Loading it...");
-            keyManager = new KeyManager(keyName, keyStorePath, keyPassword.toCharArray(), keyStorePassword.toCharArray());
         } catch (UnexistingKeyException | IOException e) {
             if (privateKeyPath != null && certificatePath != null) {
-                System.out.println("Key does not exist in keystore! Please provide private key and cert to add.");
+                System.out.println("Key not found in keystore. Adding it...");
+                keyManager = new KeyManager(privateKeyPath, keyStorePath, keyPassword.toCharArray(),
+                        keyStorePassword.toCharArray(), keyName, certificatePath);
+            } else {
+                System.out.println("Invalid key provided");
                 return;
             }
-            System.out.println("Key not found in keystore. Adding it...");
-            keyManager = new KeyManager(privateKeyPath, keyStorePath, keyPassword.toCharArray(),
-                    keyStorePassword.toCharArray(), keyName, certificatePath);
         }
 
-        InteractiveClient client = new InteractiveClient(target, keyManager, (PublicKey) Crypto.readKeyOrExit(serverKeyPath, "pub"));
+        InteractiveClient client = new InteractiveClient(target, keyManager,
+                (PublicKey) Crypto.readKeyOrExit(serverKeyPath, "pub"));
         client.run();
     }
 
@@ -119,7 +122,8 @@ public class InteractiveClient {
         }
     }
 
-    private void negotiateNonce() throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
+    private void negotiateNonce()
+            throws FailedChallengeException, SignatureException, InvalidKeyException, FailedAuthenticationException {
         if (nonce != null)
             return;
         Bank.NonceNegotiationResponse response = client.nonceNegotiation(keyManager.getKey(), publicKey);
@@ -130,7 +134,8 @@ public class InteractiveClient {
         try {
             Bank.OpenAccountResponse response = client.openAccount(keyManager.getKey(), publicKey);
             System.out.println("Response: " + response.getStatus().name());
-        } catch (FailedChallengeException | SignatureException | InvalidKeyException | FailedAuthenticationException e) {
+        } catch (FailedChallengeException | SignatureException | InvalidKeyException
+                | FailedAuthenticationException e) {
             System.out.println("Error: " + e.getMessage());
         }
     }
@@ -149,12 +154,14 @@ public class InteractiveClient {
             scan.nextLine();
 
             negotiateNonce();
-            Bank.SendAmountResponse response = client.sendAmount(keyManager.getKey(), publicKey, receiverPublicKey, Integer.toString(amount), nonce);
+            Bank.SendAmountResponse response = client.sendAmount(keyManager.getKey(), publicKey, receiverPublicKey,
+                    Integer.toString(amount), nonce);
 
             nonce = Nonce.decode(response.getNonce());
 
             System.out.println("Response: " + response.getStatus().name());
-        } catch (FailedChallengeException | SignatureException | InvalidKeyException | FailedAuthenticationException | WrongNonceException e) {
+        } catch (FailedChallengeException | SignatureException | InvalidKeyException | FailedAuthenticationException
+                | WrongNonceException e) {
             System.out.println("Error: " + e.getMessage());
         }
     }
@@ -173,12 +180,14 @@ public class InteractiveClient {
             scan.nextLine();
 
             negotiateNonce();
-            Bank.ReceiveAmountResponse response = client.receiveAmount(keyManager.getKey(), senderPublicKey, publicKey, Integer.toString(amount), true, nonce);
+            Bank.ReceiveAmountResponse response = client.receiveAmount(keyManager.getKey(), senderPublicKey, publicKey,
+                    Integer.toString(amount), true, nonce);
 
             nonce = Nonce.decode(response.getNonce());
 
             System.out.println("Response: " + response.getStatus().name());
-        } catch (WrongNonceException | FailedChallengeException | SignatureException  | InvalidKeyException | FailedAuthenticationException e) {
+        } catch (WrongNonceException | FailedChallengeException | SignatureException | InvalidKeyException
+                | FailedAuthenticationException e) {
             System.out.println("Error: " + e.getMessage());
         }
     }
@@ -202,8 +211,11 @@ public class InteractiveClient {
                 System.out.println("Balance: " + response.getBalance());
                 for (Bank.NonRepudiableTransaction transaction : response.getTransactionsList()) {
                     System.out.println("Transaction: " + transaction.getTransaction().getAmount() + " from " +
-                            Crypto.keyAsShortString(Crypto.decodePublicKey(transaction.getTransaction().getSourcePublicKey())) + " to " +
-                            Crypto.keyAsShortString(Crypto.decodePublicKey(transaction.getTransaction().getDestinationPublicKey())));
+                            Crypto.keyAsShortString(
+                                    Crypto.decodePublicKey(transaction.getTransaction().getSourcePublicKey()))
+                            + " to " +
+                            Crypto.keyAsShortString(
+                                    Crypto.decodePublicKey(transaction.getTransaction().getDestinationPublicKey())));
                 }
             }
         } catch (FailedChallengeException | FailedAuthenticationException e) {
@@ -232,8 +244,11 @@ public class InteractiveClient {
             if (response.getStatus() == Bank.AuditResponse.Status.SUCCESS) {
                 for (Bank.NonRepudiableTransaction transaction : response.getTransactionsList()) {
                     System.out.println("Transaction: " + transaction.getTransaction().getAmount() + " from " +
-                            Crypto.keyAsShortString(Crypto.decodePublicKey(transaction.getTransaction().getSourcePublicKey())) + " to " +
-                            Crypto.keyAsShortString(Crypto.decodePublicKey(transaction.getTransaction().getDestinationPublicKey())));
+                            Crypto.keyAsShortString(
+                                    Crypto.decodePublicKey(transaction.getTransaction().getSourcePublicKey()))
+                            + " to " +
+                            Crypto.keyAsShortString(
+                                    Crypto.decodePublicKey(transaction.getTransaction().getDestinationPublicKey())));
                 }
             }
         } catch (FailedChallengeException | FailedAuthenticationException e) {
