@@ -52,6 +52,16 @@ SendAmount and ReceiveAmount, however, use a sequence counting system starting o
 Each account is given a random starting nonce and every message sent by that client increments that count. 
 A message is only valid if the provided nonce is the one stored by the client incremented by one. 
 
+## DOS Protection
+
+Denial of Service protection is implemented by the server only on the functions that require a change of state:
+- OpenAccount
+- SendAmount
+- ReceieveAmount
+
+We implemented DOS protection by blocking the account makinging the request and not the ip of the atacker just for simplicity. We consider a burst of requests to be a DOS attack if it was under 400ms between requests.
+
+
 ## Crash Recovery
 
 The server creates and maintains a ledger file with the list of actions performed on the server. 
