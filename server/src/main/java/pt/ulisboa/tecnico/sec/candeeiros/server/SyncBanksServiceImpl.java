@@ -23,6 +23,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceImplBase {
 
@@ -33,19 +34,19 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     private final KeyManager keyManager;
 
     //Open Account Storages
-    private final HashMap<Integer, openAccountIntent> openAccountIntents;
-    private final HashMap<Integer, Bank.OpenAccountResponse> openAccountResponses;
-    private final HashMap<SyncBanks.OpenAccountAppliedRequest, Integer> openAppliedCounter;
+    private final ConcurrentHashMap<Integer, ArrayList<openAccountIntent>> openAccountIntents;
+    private final ConcurrentHashMap<Integer, Bank.OpenAccountResponse> openAccountResponses;
+    private final ConcurrentHashMap<SyncBanks.OpenAccountAppliedRequest, Integer> openAppliedCounter;
 
     //Send Amount Storages
-    private final HashMap<Integer, sendAmountIntent> sendAmountIntents;
-    private final HashMap<Integer, Bank.SendAmountResponse> sendAmountResponses;
-    private final HashMap<SyncBanks.SendAmountAppliedRequest, Integer> sendAmountAppliedCounter;
+    private final ConcurrentHashMap<Integer, ArrayList<sendAmountIntent>> sendAmountIntents;
+    private final ConcurrentHashMap<Integer, Bank.SendAmountResponse> sendAmountResponses;
+    private final ConcurrentHashMap<SyncBanks.SendAmountAppliedRequest, Integer> sendAmountAppliedCounter;
 
     //Receive Amount Storages
-    private final HashMap<Integer, receiveAmountIntent> receiveAmountIntents;
-    private final HashMap<Integer, Bank.ReceiveAmountResponse> receiveAmountResponses;
-    private final HashMap<SyncBanks.ReceiveAmountAppliedRequest, Integer> receiveAmountAppliedCounter;
+    private final ConcurrentHashMap<Integer, ArrayList<receiveAmountIntent>> receiveAmountIntents;
+    private final ConcurrentHashMap<Integer, Bank.ReceiveAmountResponse> receiveAmountResponses;
+    private final ConcurrentHashMap<SyncBanks.ReceiveAmountAppliedRequest, Integer> receiveAmountAppliedCounter;
 
     //Communication between SyncBanks
     private final List<String> SyncBanksTargets;
@@ -66,22 +67,22 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         this.bank = new BftBank(ledgerFileName);
         this.BankTarget = bankTarget;
 
-        this.openAccountIntents = new HashMap<>();
-        this.openAccountResponses = new HashMap<>();
+        this.openAccountIntents = new ConcurrentHashMap<>();
+        this.openAccountResponses = new ConcurrentHashMap<>();
 
-        this.sendAmountIntents = new HashMap<>();
-        this.sendAmountResponses = new HashMap<>();
+        this.sendAmountIntents = new ConcurrentHashMap<>();
+        this.sendAmountResponses = new ConcurrentHashMap<>();
 
-        this.receiveAmountIntents = new HashMap<>();
-        this.receiveAmountResponses = new HashMap<>();
+        this.receiveAmountIntents = new ConcurrentHashMap<>();
+        this.receiveAmountResponses = new ConcurrentHashMap<>();
 
         this.SyncBanksManagedChannels = new ArrayList<>();
         this.SyncBanksTargets = new ArrayList<>();
         this.SyncBanksStubs = new ArrayList<>();
 
-        this.openAppliedCounter = new HashMap<>();
-        this.sendAmountAppliedCounter = new HashMap<>();
-        this.receiveAmountAppliedCounter = new HashMap<>();
+        this.openAppliedCounter = new ConcurrentHashMap<>();
+        this.sendAmountAppliedCounter = new ConcurrentHashMap<>();
+        this.receiveAmountAppliedCounter = new ConcurrentHashMap<>();
 
         this.totalServers = totalServers;
         this.port = port;
@@ -176,7 +177,8 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onCompleted();
         // receive intent to open account
         logger.info("Open Account: Got Intent"); //TODO add from which server id it got
-        openAccountIntents.put(request.getTimestamp(), new openAccountIntent(request.getTimestamp(), request.getOpenAccountRequest()));
+        openAccountIntents.computeIfAbsent(request.getTimestamp(), k -> new ArrayList<>());
+        openAccountIntents.get(request.getTimestamp()).add(new openAccountIntent(request.getTimestamp(), request.getOpenAccountRequest()));
 
         // check status if account can be opened
         Bank.OpenAccountResponse.Status status = openAccountStatus(request.getOpenAccountRequest());
@@ -198,8 +200,22 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
         logger.info("Open Account: Got Status"); //TODO add from which server id it got
-        openAccountIntent currentIntent = openAccountIntents.get(request.getTimestamp());
-        //TODO what if the currentIntent is null/doesn't exist?
+
+        openAccountIntent currentIntent = null;
+
+        while(currentIntent == null) {
+            for (openAccountIntent intent : openAccountIntents.get(request.getTimestamp())) {
+                if (intent.getRequest().equals(request.getOpenAccountRequest())) {
+                    currentIntent = intent;
+                    break;
+                }
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
         // add to status array of this open account intent
         currentIntent.addStatus(request.getOpenAccountResponse().getStatus());
@@ -325,8 +341,8 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onCompleted();
 
         // receive intent to send amount
-        sendAmountIntents.put(request.getTimestamp(), new sendAmountIntent(request.getTimestamp(), request.getSendAmountRequest()));
-
+        sendAmountIntents.computeIfAbsent(request.getTimestamp(), k -> new ArrayList<>());
+        sendAmountIntents.get(request.getTimestamp()).add(new sendAmountIntent(request.getTimestamp(), request.getSendAmountRequest()));
         // check status if money can be sent
         Bank.SendAmountResponse.Status status = sendAmountStatus(request.getSendAmountRequest());
 
@@ -348,8 +364,21 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onCompleted();
 
         logger.info("Send Amount: Got Status");
-        sendAmountIntent currentIntent = sendAmountIntents.get(request.getTimestamp());
-        //TODO what if the currentIntent is null/doesn't exist?
+        sendAmountIntent currentIntent = null;
+
+        while(currentIntent == null) {
+            for (sendAmountIntent intent : sendAmountIntents.get(request.getTimestamp())) {
+                if (intent.getRequest().equals(request.getSendAmountRequest())) {
+                    currentIntent = intent;
+                    break;
+                }
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
         // add to status array of this send amount intent
         currentIntent.addStatus(request.getSendAmountResponse().getStatus());
@@ -480,7 +509,10 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onCompleted();
 
         // receive intent to send amount
-        receiveAmountIntents.put(request.getTimestamp(), new receiveAmountIntent(request.getTimestamp(), request.getReceiveAmountRequest()));
+        receiveAmountIntents.computeIfAbsent(request.getTimestamp(), k -> new ArrayList<>());
+        receiveAmountIntents.get(request.getTimestamp()).add(new receiveAmountIntent(request.getTimestamp(), request.getReceiveAmountRequest()));
+
+        // check status if money can be sent
 
         // check status if money can be received
         Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request.getReceiveAmountRequest());
@@ -503,8 +535,21 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onCompleted();
 
         logger.info("Receive Amount: Got Status");
-        receiveAmountIntent currentIntent = receiveAmountIntents.get(request.getTimestamp());
-        //TODO what if the currentIntent is null/doesn't exist?
+        receiveAmountIntent currentIntent = null;
+
+        while(currentIntent == null) {
+            for (receiveAmountIntent intent : receiveAmountIntents.get(request.getTimestamp())) {
+                if (intent.getRequest().equals(request.getReceiveAmountRequest())) {
+                    currentIntent = intent;
+                    break;
+                }
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
         // add to status array of this receive amount intent
         currentIntent.addStatus(request.getReceiveAmountResponse().getStatus());
