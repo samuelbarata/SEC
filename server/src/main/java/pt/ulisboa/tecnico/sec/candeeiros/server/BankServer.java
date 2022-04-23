@@ -48,10 +48,10 @@ public class BankServer {
 		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager,
 				"localhost:" + (port + id), lSwitch);
 		final BindableService implSync = (BindableService) new SyncBanksServiceImpl(ledgeFileName, keyManager,
-				totalServers, "localhost:" + (4200 + id), port);
+				totalServers, "localhost:" + (port + id), port);
 
 		// Create a new server to listen on port.
-		Server server = ServerBuilder.forPort(port).addService(impl).addService(implSync).build();
+		Server server = ServerBuilder.forPort(port+id).addService(impl).addService(implSync).build();
 		// Start the server.
 		server.start();
 		// Server threads are running in the background.

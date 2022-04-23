@@ -88,7 +88,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         this.port = port;
         this.keyManager = keyManager;
         CreateStubs();
-        logger.info("Servers needed for majority: {}", Math.ceil((double)totalServers/2));
+        logger.info("Servers needed for majority: {}", totalServers %2==0 ? (Math.ceil((double)(totalServers+1)/2)) : (Math.ceil((double)(totalServers)/2)));
     }
 
     public void CreateStubs()

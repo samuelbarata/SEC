@@ -61,7 +61,7 @@ public class receiveAmountIntent {
     }
 
     public boolean hasMajority(int totalServers) {
-        return occurrences.get(majority) >= (Math.ceil((double)totalServers/2));
+        return totalServers %2==0 ? occurrences.get(majority) >= (Math.ceil((double)(totalServers+1)/2)) : occurrences.get(majority) >= (Math.ceil((double)(totalServers)/2));
     }
 
     public Bank.ReceiveAmountResponse.Status getMajority() {

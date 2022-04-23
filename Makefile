@@ -17,13 +17,13 @@ c_client: contract shared
 	@cd client;\
 	mvn compile
 
-server: contract shared cert
+server $(id) $(total): contract shared
 	cd server;\
-	mvn exec:java
+	mvn exec:java -Dexec.args="4200 ./server$(id).ledger ./keys/$(id)/private_key.der ./server$(id).ks ./keys/$(id)/certificate.crt $(id) $(total) server$(id)"
 
 client $(id) $(connect_to): contract shared
 	cd client;\
-		mvn exec:java -Dexec.args="localhost $(connect_to) ./client.ks a client$(id) 0 ./keys/server/id.pub ./keys/$(id)/private_key.der ./keys/$(id)/certificate.crt"
+	mvn exec:java -Dexec.args="localhost $$(expr 4200 + $(connect_to)) ./client.ks a client$(id) 0 ../server/keys/$(connect_to)/id.pub ./keys/$(id)/private_key.der ./keys/$(id)/certificate.crt"
 
 test: 
 	cd client;\
@@ -50,9 +50,6 @@ corrupt_ledger:
 
 delete_ledger:
 	rm ./server/server.ledger
-
-cert: server/keys/certificate.crt server/keys/privateKey.key
-
 
 server/keys/certificate.crt server/keys/privateKey.key:
 	cd server/keys;\
