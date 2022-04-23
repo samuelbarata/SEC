@@ -68,6 +68,10 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		this.timestamp = 0;
 	}
 
+	public Bank.Ack buildAck() {
+		return Bank.Ack.newBuilder().build();
+	}
+
 	public void CreateStubs() {
 		ManagedChannel channel;
 		for (String target : SyncBanksTargets) {
@@ -189,6 +193,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		logger.info("Got Sync Request: " + request.getTimestamp());
 		Bank.OpenAccountResponse response = request.getOpenAccountResponse();
 		OpenAccountResponses.put(request.getTimestamp(), response);
+		responseObserver.onNext(buildAck());
+		responseObserver.onCompleted();
 	}
 
 	private Bank.NonceNegotiationResponse.Status nonceNegotiationStatus(Bank.NonceNegotiationRequest request) {
@@ -417,6 +423,8 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		logger.info("Got Sync Request: " + request.getTimestamp());
 		Bank.SendAmountResponse response = request.getSendAmountResponse();
 		SendAmountResponses.put(request.getTimestamp(), response);
+		responseObserver.onNext(buildAck());
+		responseObserver.onCompleted();
 	}
 
 	private Bank.ReceiveAmountResponse.Status receiveAmountStatus(Bank.ReceiveAmountRequest request) {
@@ -578,6 +586,9 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		logger.info("Got Sync Request: " + request.getTimestamp());
 		Bank.ReceiveAmountResponse response = request.getReceiveAmountResponse();
 		ReceiveAmountResponses.put(request.getTimestamp(), response);
+		responseObserver.onNext(buildAck());
+		responseObserver.onCompleted();
+
 	}
 
 	// ***** Unauthenticated procedures *****
