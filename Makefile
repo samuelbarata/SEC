@@ -68,6 +68,6 @@ checkClientKeyStore:
 
 clean:
 	@mvn clean
-	@rm -f server/server.ledger
-	@#rm -f server/keys/certificate.crt server/keys/privateKey.key
-
+	@rm -f server/*.ledger
+	@rm -f server/*.ks
+	@rm -f client/*.ks
