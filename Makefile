@@ -19,7 +19,7 @@ c_client: contract shared
 
 server $(id) $(total): contract shared
 	cd server;\
-	mvn exec:java -Dexec.args="4200 ./server$(id).ledger ./keys/$(id)/private_key.der ./server$(id).ks ./keys/$(id)/certificate.crt $(id) $(total) server$(id)"
+	mvn exec:java -Dexec.args="4200 ./server$(id).ledger ./keys/$(id)/private_key.der ./server.ks ./keys/$(id)/certificate.crt $(id) $(total) server$(id)"
 
 client $(id) $(connect_to): contract shared
 	cd client;\
@@ -69,5 +69,5 @@ checkClientKeyStore:
 clean:
 	@mvn clean
 	@rm -f server/*.ledger
-	@rm -f server/*.ks
-	@rm -f client/*.ks
+	@rm -f server/server.ks
+	@rm -f client/client.ks
