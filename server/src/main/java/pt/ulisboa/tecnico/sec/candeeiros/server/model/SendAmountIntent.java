@@ -5,7 +5,7 @@ import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class sendAmountIntent {
+public class SendAmountIntent {
     private int timestamp;
     private Bank.SendAmountRequest request;
     private ArrayList<Bank.SendAmountResponse.Status> statuses;
@@ -13,7 +13,7 @@ public class sendAmountIntent {
     private Bank.SendAmountResponse.Status majority;
     private boolean majorityChecked;
 
-    public sendAmountIntent(int timestamp, Bank.SendAmountRequest request) {
+    public SendAmountIntent(int timestamp, Bank.SendAmountRequest request) {
         this.timestamp = timestamp;
         this.request = request;
         this.statuses = new ArrayList<>();

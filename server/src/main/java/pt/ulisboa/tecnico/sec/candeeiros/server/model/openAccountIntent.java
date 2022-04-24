@@ -5,7 +5,7 @@ import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class openAccountIntent {
+public class OpenAccountIntent {
     private int timestamp;
     private Bank.OpenAccountRequest request;
     private ArrayList<Bank.OpenAccountResponse.Status> statuses;
@@ -13,7 +13,7 @@ public class openAccountIntent {
     private Bank.OpenAccountResponse.Status majority;
     private boolean majorityChecked;
 
-    public openAccountIntent(int timestamp, Bank.OpenAccountRequest request) {
+    public OpenAccountIntent(int timestamp, Bank.OpenAccountRequest request) {
         this.timestamp = timestamp;
         this.request = request;
         this.statuses = new ArrayList<>();

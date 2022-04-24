@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run Server 0" type="MavenRunConfiguration" factoryName="Maven">
+  <configuration default="false" name="Run Server 1" type="MavenRunConfiguration" factoryName="Maven">
     <MavenSettings>
       <option name="myGeneralSettings" />
       <option name="myRunnerSettings" />
@@ -13,7 +13,7 @@
               <option value="clean" />
               <option value="compile" />
               <option value="exec:java" />
-              <option value="-Dexec.args=4200 ./server0.ledger ./keys/0/private_key.der ./server.ks ./keys/0/certificate.crt 0 2 server0" />
+              <option value="-Dexec.args=4200 ./server1.ledger ./keys/1/private_key.der ./server.ks ./keys/1/certificate.crt 1 2 server1" />
             </list>
           </option>
           <option name="pomFileName" />

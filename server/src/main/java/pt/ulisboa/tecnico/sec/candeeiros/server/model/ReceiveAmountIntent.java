@@ -5,15 +5,15 @@ import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class receiveAmountIntent {
+public class ReceiveAmountIntent {
     private int timestamp;
     private Bank.ReceiveAmountRequest request;
-    private ArrayList<Bank.ReceiveAmountResponse.Status> statuses;
+    private final ArrayList<Bank.ReceiveAmountResponse.Status> statuses;
     private final HashMap<Bank.ReceiveAmountResponse.Status, Integer> occurrences;
     private Bank.ReceiveAmountResponse.Status majority;
     private boolean majorityChecked;
 
-    public receiveAmountIntent(int timestamp, Bank.ReceiveAmountRequest request) {
+    public ReceiveAmountIntent(int timestamp, Bank.ReceiveAmountRequest request) {
         this.timestamp = timestamp;
         this.request = request;
         this.statuses = new ArrayList<>();
@@ -40,7 +40,6 @@ public class receiveAmountIntent {
 
     public void addStatus(Bank.ReceiveAmountResponse.Status newStatus) {
         statuses.add(newStatus);
-
         // first time adding a status, to update majority
         if(majority == null) {
             occurrences.put(newStatus, 1);

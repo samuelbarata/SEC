@@ -33,19 +33,19 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     private final KeyManager keyManager;
 
     //Open Account Storages
-    private final ConcurrentHashMap<Integer, ArrayList<openAccountIntent>> openAccountIntents;
+    private final ConcurrentHashMap<Integer, ArrayList<OpenAccountIntent>> openAccountIntents;
     private final ConcurrentHashMap<Integer, Bank.OpenAccountResponse> openAccountResponses;
     private final ConcurrentHashMap<SyncBanks.OpenAccountAppliedRequest, Integer> openAppliedCounter;
     private final ArrayList<SyncBanks.OpenAccountIntentRequest> openAccountOriginalsSync;
 
     //Send Amount Storages
-    private final ConcurrentHashMap<Integer, ArrayList<sendAmountIntent>> sendAmountIntents;
+    private final ConcurrentHashMap<Integer, ArrayList<SendAmountIntent>> sendAmountIntents;
     private final ConcurrentHashMap<Integer, Bank.SendAmountResponse> sendAmountResponses;
     private final ConcurrentHashMap<SyncBanks.SendAmountAppliedRequest, Integer> sendAmountAppliedCounter;
     private final ArrayList<SyncBanks.SendAmountIntentRequest> sendAmountOriginalsSync;
 
     //Receive Amount Storages
-    private final ConcurrentHashMap<Integer, ArrayList<receiveAmountIntent>> receiveAmountIntents;
+    private final ConcurrentHashMap<Integer, ArrayList<ReceiveAmountIntent>> receiveAmountIntents;
     private final ConcurrentHashMap<Integer, Bank.ReceiveAmountResponse> receiveAmountResponses;
     private final ConcurrentHashMap<SyncBanks.ReceiveAmountAppliedRequest, Integer> receiveAmountAppliedCounter;
     private final ArrayList<SyncBanks.ReceiveAmountIntentRequest> receiveAmountOriginalsSync;
@@ -164,11 +164,6 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         Bank.OpenAccountResponse.Builder request = Bank.OpenAccountResponse.newBuilder();
         request.setStatus(status);
 
-        //Security (signing, nonces)
-
-
-        //Return
-
         return request.build();
     }
 
@@ -218,7 +213,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         }
 
         openAccountIntents.computeIfAbsent(request.getTimestamp(), k -> new ArrayList<>());
-        openAccountIntents.get(request.getTimestamp()).add(new openAccountIntent(request.getTimestamp(), request.getOpenAccountRequest()));
+        openAccountIntents.get(request.getTimestamp()).add(new OpenAccountIntent(request.getTimestamp(), request.getOpenAccountRequest()));
 
         // if timestamp is valid check status if account can be opened
         if(status == null) status = openAccountStatus(request.getOpenAccountRequest());
@@ -236,12 +231,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     }
 
     @Override
-    public void openAccountStatus(SyncBanks.OpenAccountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
+    public synchronized void openAccountStatus(SyncBanks.OpenAccountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
         logger.info("Open Account: Got Status"); //TODO add from which server id it got
 
-        openAccountIntent currentIntent = null;
+        OpenAccountIntent currentIntent = null;
         while(openAccountIntents.get(request.getTimestamp())==null) {
             try {
                 Thread.sleep(100);
@@ -251,7 +246,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         }
 
         while(currentIntent == null) {
-            for (openAccountIntent intent : openAccountIntents.get(request.getTimestamp())) {
+            for (OpenAccountIntent intent : openAccountIntents.get(request.getTimestamp())) {
                 if (intent.getRequest().equals(request.getOpenAccountRequest())) {
                     currentIntent = intent;
                     break;
@@ -306,6 +301,16 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         // add to applied array of this open account applied
         openAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
+        boolean found = false;
+        for (SyncBanks.OpenAccountIntentRequest intentRequest : openAccountOriginalsSync) {
+            if (intentRequest.getOpenAccountRequest().equals(request.getOpenAccountRequest())) {
+                found = true;
+                break;
+            }
+        }
+
+        if(!found) return;
+
         if(openAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
             logger.info("Open Account: Applied Majority");
             // if so, send to client the requests result
@@ -390,6 +395,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         newRequest.setSendAmountRequest(request.getSendAmountRequest());
         newRequest.setTimestamp(this.timestamp + 1);
 
+        sendAmountOriginalsSync.add(newRequest.build());
         return newRequest.build();
     }
 
@@ -423,7 +429,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         }
 
         sendAmountIntents.computeIfAbsent(request.getTimestamp(), k -> new ArrayList<>());
-        sendAmountIntents.get(request.getTimestamp()).add(new sendAmountIntent(request.getTimestamp(), request.getSendAmountRequest()));
+        sendAmountIntents.get(request.getTimestamp()).add(new SendAmountIntent(request.getTimestamp(), request.getSendAmountRequest()));
 
         // if timestamp is valid check status if amount can be sent
         if(status == null) status = sendAmountStatus(request.getSendAmountRequest());
@@ -441,15 +447,15 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     }
 
     @Override
-    public void sendAmountStatus(SyncBanks.SendAmountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
+    public synchronized void sendAmountStatus(SyncBanks.SendAmountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
         logger.info("Send Amount: Got Status");
 
-        sendAmountIntent currentIntent = null;
+        SendAmountIntent currentIntent = null;
 
         while(currentIntent == null) {
-            for (sendAmountIntent intent : sendAmountIntents.get(request.getTimestamp())) {
+            for (SendAmountIntent intent : sendAmountIntents.get(request.getTimestamp())) {
                 if (intent.getRequest().equals(request.getSendAmountRequest())) {
                     currentIntent = intent;
                     break;
@@ -467,9 +473,10 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         // check if majority was achieved
         if(currentIntent.hasMajority(totalServers)) {
+            logger.info("Send Amount: Majority Achieved");
             currentIntent.majorityChecked();
             if(currentIntent.getMajority()==Bank.SendAmountResponse.Status.INVALID_TIMESTAMP) {
-                logger.info("Invalid Timestamp");
+                logger.info("Send Amount: Invalid Timestamp");
                 for (SyncBanks.SendAmountIntentRequest intentRequest : sendAmountOriginalsSync) {
                     if (intentRequest.getSendAmountRequest().equals(request.getSendAmountRequest())) {
                         Bank.SendAmountSync.Builder syncResponse = Bank.SendAmountSync.newBuilder();
@@ -482,8 +489,10 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
             }
             sendAmountResponses.put(request.getTimestamp(), request.getSendAmountResponse());
             // if so, apply
-            if(currentIntent.getMajority()==Bank.SendAmountResponse.Status.SUCCESS)
+            if(currentIntent.getMajority()==Bank.SendAmountResponse.Status.SUCCESS) {
+                logger.info("Send Amount: Applying Send Amount");
                 sendAmount(currentIntent.getRequest());
+            }
             // send apply request to all other servers
             SyncBanks.SendAmountAppliedRequest.Builder appliedRequest = SyncBanks.SendAmountAppliedRequest.newBuilder();
             appliedRequest.setSendAmountRequest(currentIntent.getRequest());
@@ -504,7 +513,16 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         // add to applied array of this send amount applied
         sendAmountAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
-        if(sendAmountAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
+        boolean found = false;
+        for (SyncBanks.SendAmountIntentRequest intentRequest : sendAmountOriginalsSync) {
+            if (intentRequest.getSendAmountRequest().equals(request.getSendAmountRequest())) {
+                found = true;
+                break;
+            }
+        }
+        if(!found) return;
+
+        if(totalServers %2==0 ? sendAmountAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2)+1) : sendAmountAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
             logger.info("Send Amount: Applied Majority");
             // if so, send to client the requests result
             Bank.SendAmountSync.Builder syncResponse = Bank.SendAmountSync.newBuilder();
@@ -594,6 +612,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         newRequest.setTimestamp(this.timestamp + 1);
 
 
+        receiveAmountOriginalsSync.add(newRequest.build());
         return newRequest.build();
     }
 
@@ -619,7 +638,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         // receive intent to send amount
 
-        logger.info("Send Amount: Got Intent");
+        logger.info("Receive Amount: Got Intent");
 
         Bank.ReceiveAmountResponse.Status status = null;
 
@@ -630,7 +649,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         }
 
         receiveAmountIntents.computeIfAbsent(request.getTimestamp(), k -> new ArrayList<>());
-        receiveAmountIntents.get(request.getTimestamp()).add(new receiveAmountIntent(request.getTimestamp(), request.getReceiveAmountRequest()));
+        receiveAmountIntents.get(request.getTimestamp()).add(new ReceiveAmountIntent(request.getTimestamp(), request.getReceiveAmountRequest()));
 
         // if timestamp is valid check status if amount can be received
         if(status == null) status = receiveAmountStatus(request.getReceiveAmountRequest());
@@ -648,15 +667,15 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     }
 
     @Override
-    public void receiveAmountStatus(SyncBanks.ReceiveAmountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
+    public synchronized void receiveAmountStatus(SyncBanks.ReceiveAmountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
 
         logger.info("Receive Amount: Got Status");
-        receiveAmountIntent currentIntent = null;
+        ReceiveAmountIntent currentIntent = null;
 
         while(currentIntent == null) {
-            for (receiveAmountIntent intent : receiveAmountIntents.get(request.getTimestamp())) {
+            for (ReceiveAmountIntent intent : receiveAmountIntents.get(request.getTimestamp())) {
                 if (intent.getRequest().equals(request.getReceiveAmountRequest())) {
                     currentIntent = intent;
                     break;
@@ -671,12 +690,13 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         // add to status array of this receive amount intent
         currentIntent.addStatus(request.getReceiveAmountResponse().getStatus());
-
+        logger.info("Receive Amount: Checking Majority");
         // check if majority was achieved
         if(currentIntent.hasMajority(totalServers)) {
+            logger.info("Receive Amount: Majority Achieved");
             currentIntent.majorityChecked();
             if(currentIntent.getMajority()==Bank.ReceiveAmountResponse.Status.INVALID_TIMESTAMP) {
-                logger.info("Invalid Timestamp");
+                logger.info("Receive Amount: Invalid Timestamp");
                 for (SyncBanks.ReceiveAmountIntentRequest intentRequest : receiveAmountOriginalsSync) {
                     if (intentRequest.getReceiveAmountRequest().equals(request.getReceiveAmountRequest())) {
                         Bank.ReceiveAmountSync.Builder syncResponse = Bank.ReceiveAmountSync.newBuilder();
@@ -690,8 +710,10 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
             receiveAmountResponses.put(request.getTimestamp(), request.getReceiveAmountResponse());
             // if so, apply
-            if(currentIntent.getMajority()==Bank.ReceiveAmountResponse.Status.SUCCESS)
+            if(currentIntent.getMajority()==Bank.ReceiveAmountResponse.Status.SUCCESS) {
+                logger.info("Receive Amount: Executing");
                 receiveAmount(currentIntent.getRequest());
+            }
             // send apply request to all other servers
             SyncBanks.ReceiveAmountAppliedRequest.Builder appliedRequest = SyncBanks.ReceiveAmountAppliedRequest.newBuilder();
             appliedRequest.setReceiveAmountRequest(currentIntent.getRequest());
@@ -712,7 +734,17 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         // add to applied array of this send amount applied
         receiveAmountAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
-        if(receiveAmountAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
+
+        boolean found = false;
+        for (SyncBanks.ReceiveAmountIntentRequest intentRequest : receiveAmountOriginalsSync) {
+            if (intentRequest.getReceiveAmountRequest().equals(request.getReceiveAmountRequest())) {
+                found = true;
+                break;
+            }
+        }
+        if(!found) return;
+
+        if(totalServers %2==0 ? receiveAmountAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2)+1) : receiveAmountAppliedCounter.get(request)>=(Math.ceil((double)totalServers/2))) {
             logger.info("Receive Amount: Applied Majority");
             // if so, send to client the requests result
             Bank.ReceiveAmountSync.Builder syncResponse = Bank.ReceiveAmountSync.newBuilder();
@@ -745,6 +777,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
             // request all values from all servers
             SyncBanks.CheckAccountSyncResponse responseSync = stub.checkAccountSync(request);
             if (intent.addResponse(responseSync.getTimestamp(), responseSync.getCheckAccountResponse(), totalServers)) {
+                logger.info("Check Account: Got Majority, sending to client");
                 responseObserver.onNext(intent.getMajority());
                 responseObserver.onCompleted();
             }
