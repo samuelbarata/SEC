@@ -9,6 +9,7 @@ import java.util.Base64;
 
 public class Nonce {
     private final byte[] bytes;
+    private static int accountNumber = 0;
 
     private Nonce(byte[] bytes) {
         if (bytes.length != 16) {
@@ -36,6 +37,17 @@ public class Nonce {
         SecureRandom sr = new SecureRandom();
         byte[] bytes = new byte[16];
         sr.nextBytes(bytes);
+        return new Nonce(bytes);
+    }
+
+    public static Nonce newAccountNonce() {
+        byte[] bytes = new byte[16];
+        Arrays.fill(bytes, (byte) 0);
+        bytes[15] = (byte) accountNumber;
+        bytes[14] = (byte) (accountNumber / 256);
+        bytes[13] = (byte) (accountNumber / 256*256);
+        bytes[12] = (byte) (accountNumber / 256*256*256);
+        accountNumber++;
         return new Nonce(bytes);
     }
 

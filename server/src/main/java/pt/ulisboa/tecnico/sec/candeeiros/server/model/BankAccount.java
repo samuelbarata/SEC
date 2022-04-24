@@ -33,7 +33,7 @@ public class BankAccount {
     }
 
     public BankAccount(PublicKey publicKey) {
-        this(publicKey, Nonce.newNonce());
+        this(publicKey, Nonce.newAccountNonce());
     }
 
     public Nonce getNonce() {
