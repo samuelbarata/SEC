@@ -91,7 +91,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         this.port = port;
         this.keyManager = keyManager;
         CreateStubs();
-        logger.info("Servers needed for majority: {}", totalServers %2==0 ? (Math.ceil((double)(totalServers+1)/2)) : (Math.ceil((double)(totalServers)/2)));
+        logger.info("Servers needed for majority: {}, total servers: {}", totalServers %2==0 ? (Math.ceil((double)(totalServers+1)/2)) : (Math.ceil((double)(totalServers)/2)), totalServers);
     }
 
     public void CreateStubs()
@@ -212,6 +212,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         if(openAccountIntents.containsKey(request.getTimestamp()) || request.getTimestamp() <= this.timestamp) {
             status = Bank.OpenAccountResponse.Status.INVALID_TIMESTAMP;
+            logger.info("Invalid TS");
         } else {
             this.timestamp = request.getTimestamp();
         }
@@ -241,6 +242,13 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         logger.info("Open Account: Got Status"); //TODO add from which server id it got
 
         openAccountIntent currentIntent = null;
+        while(openAccountIntents.get(request.getTimestamp())==null) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
         while(currentIntent == null) {
             for (openAccountIntent intent : openAccountIntents.get(request.getTimestamp())) {
@@ -731,6 +739,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
     @Override
     public void checkAccount(Bank.CheckAccountRequest request, StreamObserver<Bank.CheckAccountResponse> responseObserver) {
+        logger.info("Got Check Account Sync");
         CheckAccountIntent intent = new CheckAccountIntent();
         for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
             // request all values from all servers
@@ -810,9 +819,10 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
             }
 
             SyncResponse.setCheckAccountResponse(response.build());
-            SyncResponse.setTimestamp(timestamp);
+            SyncResponse.setTimestamp(this.timestamp);
             responseObserver.onNext(SyncResponse.build());
             responseObserver.onCompleted();
+            logger.info("Check Account answered");
         }
     }
     //***** Audit
@@ -833,10 +843,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
     @Override
     public void audit(Bank.AuditRequest request, StreamObserver<Bank.AuditResponse> responseObserver) {
+        logger.info("Got Audit Sync");
         AuditIntent intent = new AuditIntent();
         for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
             // request all values from all servers
             SyncBanks.AuditSyncResponse responseSync = stub.auditSync(request);
+            logger.info(request.toString());
             if (intent.addResponse(responseSync.getTimestamp(), responseSync.getAuditResponse(), totalServers)) {
                 responseObserver.onNext(intent.getMajority());
                 responseObserver.onCompleted();
@@ -915,9 +927,10 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
             }
 
             SyncResponse.setAuditResponse(response.build());
-            SyncResponse.setTimestamp(timestamp);
+            SyncResponse.setTimestamp(this.timestamp);
             responseObserver.onNext(SyncResponse.build());
             responseObserver.onCompleted();
+            logger.info("Audit answered");
         }
     }
 

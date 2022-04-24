@@ -13,7 +13,7 @@
               <option value="clean" />
               <option value="compile" />
               <option value="exec:java" />
-              <option value="-Dexec.args=localhost 4200 ./client.ks a client1 0 ./keys/server/id.pub ./keys/1/private_key.der ./keys/1/certificate.crt" />
+              <option value="-Dexec.args=localhost 4200 ./client.ks a client1 0 ./keys/server/0/id.pub ./keys/1/private_key.der ./keys/1/certificate.crt" />
             </list>
           </option>
           <option name="pomFileName" />

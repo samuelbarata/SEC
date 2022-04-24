@@ -596,7 +596,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	@Override
 	public void checkAccount(Bank.CheckAccountRequest request,
 			StreamObserver<Bank.CheckAccountResponse> responseObserver) {
-
+		logger.info("Sending Check Account Request to Sync");
 		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
 			responseObserver.onNext(stub.checkAccount(request));
 			responseObserver.onCompleted();
@@ -689,6 +689,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void audit(Bank.AuditRequest request, StreamObserver<Bank.AuditResponse> responseObserver) {
+		logger.info("Sending Audit Request to Sync");
 		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
 			responseObserver.onNext(stub.audit(request));
 			responseObserver.onCompleted();

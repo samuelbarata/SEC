@@ -70,12 +70,17 @@ class BasicTest {
         CheckAccountResponse checkAccountResponse;
 
         // Create Account
+        System.out.println("Create Account1");
         openAccountResponse = client.openAccount(privateKey1, publicKey1);
         assertEquals(OpenAccountResponse.Status.SUCCESS, openAccountResponse.getStatus());
+        System.out.println("Create Account1");
+        System.out.println("Create Account2");
         openAccountResponse = client.openAccount(privateKey2, publicKey2);
         assertEquals(OpenAccountResponse.Status.SUCCESS, openAccountResponse.getStatus());
+        System.out.println("Create Account2");
 
         // Check Account
+        System.out.println("Check Account1");
         checkAccountResponse = client.checkAccount(publicKey1);
         assertEquals(CheckAccountResponse.Status.SUCCESS, checkAccountResponse.getStatus());
         assertEquals("1000", checkAccountResponse.getBalance());

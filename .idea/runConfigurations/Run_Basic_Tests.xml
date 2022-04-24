@@ -14,7 +14,7 @@
               <option value="test" />
               <option value="-Dtarget=localhost:4200" />
               <option value="-Dtest=BasicTest" />
-              <option value="-DserverPublicKey=./keys/server/id.pub" />
+              <option value="-DserverPublicKey=../server/keys/0/id.pub" />
             </list>
           </option>
           <option name="pomFileName" />
