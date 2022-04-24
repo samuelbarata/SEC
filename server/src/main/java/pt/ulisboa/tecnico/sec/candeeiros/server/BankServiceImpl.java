@@ -95,22 +95,29 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		}
 
 		int currentTS = 0;
-		SyncBanks.OpenAccountIntentRequest.Builder intentRequest = SyncBanks.OpenAccountIntentRequest.newBuilder();
-		intentRequest.setOpenAccountRequest(request);
-		// send intents to all servers
-		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
-			logger.info("Bank Service: Sent Open Account Sync");
-			currentTS = stub.openAccountSync(intentRequest.build()).getTimestamp();
-		}
-		logger.info("Bank Service: Waiting for Open Account Response");
-		while (OpenAccountResponses.get(currentTS) == null) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+		SyncBanks.OpenAccountIntentRequest.Builder intentRequest = null;
+
+		Bank.OpenAccountResponse responseSync = null;
+
+		do {
+			intentRequest = SyncBanks.OpenAccountIntentRequest.newBuilder();
+			intentRequest.setOpenAccountRequest(request);
+			// send intents to all servers
+			for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
+				logger.info("Bank Service: Sent Open Account Sync");
+				currentTS = stub.openAccountSync(intentRequest.build()).getTimestamp();
 			}
-		}
-		Bank.OpenAccountResponse responseSync = OpenAccountResponses.get(currentTS);
+			logger.info("Bank Service: Waiting for Open Account Response");
+			while (OpenAccountResponses.get(currentTS) == null) {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			responseSync = OpenAccountResponses.get(currentTS);
+		} while(responseSync.getStatus() != Bank.OpenAccountResponse.Status.INVALID_TIMESTAMP);
+
 		Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder()
 				.setStatus(responseSync.getStatus());
 		response.setChallengeNonce(request.getChallengeNonce());
@@ -162,21 +169,27 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		}
 
 		int currentTS = 0;
-		SyncBanks.SendAmountIntentRequest.Builder intentRequest = SyncBanks.SendAmountIntentRequest.newBuilder();
-		intentRequest.setSendAmountRequest(request);
-		// send intents to all servers
-		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
-			currentTS = stub.sendAmountSync(intentRequest.build()).getTimestamp();
-		}
+		SyncBanks.SendAmountIntentRequest.Builder intentRequest = null;
+		Bank.SendAmountResponse responseSync = null;
 
-		while (SendAmountResponses.get(currentTS) == null) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+		do {
+			intentRequest = SyncBanks.SendAmountIntentRequest.newBuilder();
+			intentRequest.setSendAmountRequest(request);
+			// send intents to all servers
+			for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
+				currentTS = stub.sendAmountSync(intentRequest.build()).getTimestamp();
 			}
-		}
-		Bank.SendAmountResponse responseSync = SendAmountResponses.get(currentTS);
+
+			while (SendAmountResponses.get(currentTS) == null) {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			responseSync = SendAmountResponses.get(currentTS);
+		} while (responseSync.getStatus() != Bank.SendAmountResponse.Status.INVALID_TIMESTAMP);
+
 		Bank.SendAmountResponse.Builder response = Bank.SendAmountResponse.newBuilder()
 				.setStatus(responseSync.getStatus());
 		response.setNonce(request.getNonce());
@@ -220,21 +233,27 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		}
 
 		int currentTS = 0;
-		SyncBanks.ReceiveAmountIntentRequest.Builder intentRequest = SyncBanks.ReceiveAmountIntentRequest.newBuilder();
-		intentRequest.setReceiveAmountRequest(request);
-		// send intents to all servers
-		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
-			currentTS = stub.receiveAmountSync(intentRequest.build()).getTimestamp();
-		}
+		SyncBanks.ReceiveAmountIntentRequest.Builder intentRequest = null;
+		Bank.ReceiveAmountResponse responseSync = null;
 
-		while (ReceiveAmountResponses.get(currentTS) == null) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+		do {
+			intentRequest = SyncBanks.ReceiveAmountIntentRequest.newBuilder();
+			intentRequest.setReceiveAmountRequest(request);
+			// send intents to all servers
+			for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
+				currentTS = stub.receiveAmountSync(intentRequest.build()).getTimestamp();
 			}
-		}
-		Bank.ReceiveAmountResponse responseSync = ReceiveAmountResponses.get(currentTS);
+
+			while (ReceiveAmountResponses.get(currentTS) == null) {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			responseSync = ReceiveAmountResponses.get(currentTS);
+		} while (responseSync.getStatus() != Bank.ReceiveAmountResponse.Status.INVALID_TIMESTAMP);
+
 		Bank.ReceiveAmountResponse.Builder response = Bank.ReceiveAmountResponse.newBuilder()
 				.setStatus(responseSync.getStatus());
 		response.setNonce(request.getNonce());
