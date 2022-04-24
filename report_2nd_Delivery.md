@@ -1,25 +1,25 @@
 # SEC Project Report 2nd Delivery
 
-This report consists of the changes made for the 2nd Delivery regarding the SEC project, check the report of the 1st Delivery
-for more information regarding the system
+This report consists of the changes made for the 2nd Delivery regarding the SEC project; check the report of the 1st Delivery
+for more information regarding the system.
 
 ## Security Design Decisions
 
-The goal was to guarantee consistency among all replicas of the servers, to this end we implemented a (1,N) Byzantine Atomic Register,
-like it was suggested in the project statement.
+The goal was to guarantee consistency among all replicas of the servers. To this end we implemented a (1,N) Byzantine Atomic Register,
+as suggested in the project statement.
 
-The only changes made were to the server, so the client done in the 1st stage can still be used without the user noticing any change.
+The only changes made were to the server, so the client made in the 1st stage can still be used any visible change on the user side.
 
 ## Server Architecture
 
-The server is now composed of two interfaces, the Bank Service, which is the interface the clients use to communicate with the Bank
-and the Sync Bank Service, which is the interface responsible to communicate with the other banks to synchronize and coordinate action in
+The server is now composed of two interfaces, the Bank Service, which is the interface the clients use to communicate with the Bank,
+and the Sync Bank Service, which is the interface responsible for the communication with the other banks to synchronize and coordinate action in
 order to maintain the correctness and consistency of the Bank as a whole.
 
 ## (1,N) Byzantine Atomic Register Implementation
 
-The (1,N) Byzantine Atomic Register Implementation has 2 different approaches, even thought similar they have their 
-differences that are worth mentioning. The differences are present if the operation is a read, or a write.
+The (1,N) Byzantine Atomic Register is implemented using 2 different approaches. Although similar, their 
+differences are worth noting. The implementation varies on whether the operation is a read or a write.
 
 Read operations:
 - Check Account
@@ -32,8 +32,8 @@ Write operations:
 
 ### Read operations
 
-A read operation will send to all replicas, including itself, a request for them to send the content relative to the request (Check Account or Audit)
-once the operation has a majority in similar replies, this is, more than 51% of the replies have the same content regarding the Bank, it returns that 
+A read operation will send to all replicas, including itself, a request for them to send the content relative to the request (Check Account or Audit).
+Once the operation has a majority in similar replies, that is, more than 51% of the replies have the same content regarding the Bank, it returns that 
 majority reply to the client.
 
 ### Write operations
@@ -45,7 +45,7 @@ A write operation is more complex than a read operation and is split into 3 phas
 
 #### Intent
 
-In the ***Intent*** phase a replica will send to all other replicas an Intent Request to warn the other replicas that it want to perform a write operation.
+In the ***Intent*** phase a replica will send to all other replicas an Intent Request to warn the other replicas that it wants to perform a write operation.
 The replica will also send that request to itself.
 
 Upon receiving an Intent Request, the replica will send a Status Request which will either be a *SUCCESS*, or an *ERROR_MESSAGE*, to all the other replicas.
@@ -69,11 +69,11 @@ Here's a diagram to show a simple Open Account Operation with no faults:
 
 ### Timestamps
 
-All the requests are identified with a Timestamp, these are given by the replica that receives the request from the client and then propagates it.
+All requests are identified with a Timestamp given by the replica that receives the request from the client and then propagates it.
 
-Only one request with a timestamp N will be accepted by the system, if two or more requests have the same timestamp, in the ***STATUS*** phase, the system will
+Only one request with timestamp N will be accepted by the system, if two or more requests have the same timestamp, in the ***STATUS*** phase, the system will
 only accept one of them and give an ***INVALID_TIMESTAMP*** error to the other requests. This ensures the order in which the requests are performed to avoid 
-inconsistencies along the replicas.
+inconsistencies among the replicas.
 
 Here's a diagram to show how the system decides which requests get the timestamp in case of a tie
 
