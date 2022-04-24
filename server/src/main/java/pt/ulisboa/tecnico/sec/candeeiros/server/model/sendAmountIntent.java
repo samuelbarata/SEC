@@ -11,6 +11,7 @@ public class sendAmountIntent {
     private ArrayList<Bank.SendAmountResponse.Status> statuses;
     private final HashMap<Bank.SendAmountResponse.Status, Integer> occurrences;
     private Bank.SendAmountResponse.Status majority;
+    private boolean majorityChecked;
 
     public sendAmountIntent(int timestamp, Bank.SendAmountRequest request) {
         this.timestamp = timestamp;
@@ -18,6 +19,7 @@ public class sendAmountIntent {
         this.statuses = new ArrayList<>();
         this.occurrences = new HashMap<>();
         this.majority = null;
+        this.majorityChecked = false;
     }
 
     public int getTimestamp() {
@@ -61,10 +63,12 @@ public class sendAmountIntent {
     }
 
     public boolean hasMajority(int totalServers) {
+        if(majorityChecked) return false;
         return totalServers %2==0 ? occurrences.get(majority) >= (Math.ceil((double)(totalServers+1)/2)) : occurrences.get(majority) >= (Math.ceil((double)(totalServers)/2));
     }
 
     public Bank.SendAmountResponse.Status getMajority() {
         return majority;
     }
+    public void majorityChecked() { majorityChecked = true;}
 }

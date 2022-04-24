@@ -8,11 +8,13 @@ public class CheckAccountIntent {
     int majority;
     HashMap<Integer, Integer> occurrences;
     HashMap<Integer, Bank.CheckAccountResponse> responses;
+    boolean majorityChecked;
 
     public CheckAccountIntent() {
         responses = new HashMap<>();
         occurrences = new HashMap<>();
         majority = -1;
+        this.majorityChecked = false;
     }
 
     public boolean addResponse(int timestamp, Bank.CheckAccountResponse response, int totalServers) {
@@ -31,11 +33,12 @@ public class CheckAccountIntent {
         } else if (occurrences.get(majority) < occurrences.get(timestamp)) {
             majority = timestamp;
         }
-
+        if(this.majorityChecked) return false;
         return totalServers %2==0 ? occurrences.get(majority) >= (Math.ceil((double)(totalServers+1)/2)) : occurrences.get(majority) >= (Math.ceil((double)(totalServers)/2));
     }
 
     public Bank.CheckAccountResponse getMajority() {
+        this.majorityChecked = true;
         return responses.get(majority);
     }
 }

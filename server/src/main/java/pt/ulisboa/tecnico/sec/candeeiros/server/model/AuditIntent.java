@@ -8,11 +8,13 @@ public class AuditIntent {
     int majority;
     HashMap<Integer, Integer> occurrences;
     HashMap<Integer, Bank.AuditResponse> responses;
+    boolean majorityChecked;
 
     public AuditIntent() {
         responses = new HashMap<>();
         occurrences = new HashMap<>();
         majority = -1;
+        this.majorityChecked = false;
     }
 
     public boolean addResponse(int timestamp, Bank.AuditResponse response, int totalServers) {
@@ -31,11 +33,12 @@ public class AuditIntent {
         } else if (occurrences.get(majority) < occurrences.get(timestamp)) {
             majority = timestamp;
         }
-
-        return occurrences.get(majority) >= (Math.ceil((double)totalServers / 2));
+        if(this.majorityChecked) return false;
+        return totalServers %2==0 ? occurrences.get(majority) >= (Math.ceil((double)(totalServers+1)/2)) : occurrences.get(majority) >= (Math.ceil((double)(totalServers)/2));
     }
 
     public Bank.AuditResponse getMajority() {
+        this.majorityChecked = true;
         return responses.get(majority);
     }
 }

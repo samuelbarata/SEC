@@ -37,7 +37,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	private final KeyManager keyManager;
 	private final List<String> SyncBanksTargets;
 
-	private final ArrayList<ManagedChannel> SyncBanksManagedChannels;
 	private final ArrayList<SyncBanksServiceGrpc.SyncBanksServiceBlockingStub> SyncBanksStubs;
 
 	private final ConcurrentHashMap<Integer, Bank.OpenAccountResponse> OpenAccountResponses;
@@ -46,14 +45,11 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	private final LightSwitch lightSwitch;
 
-	private int timestamp;
-
 	public BankServiceImpl(String ledgerFileName, KeyManager keyManager, String SyncBankTarget, LightSwitch lswitch)
 			throws IOException {
 		super();
 		bank = new BftBank(ledgerFileName);
 		this.keyManager = keyManager;
-		this.SyncBanksManagedChannels = new ArrayList<>();
 		this.SyncBanksTargets = new ArrayList<>();
 		this.SyncBanksStubs = new ArrayList<>();
 		this.SyncBanksTargets.add(SyncBankTarget);
@@ -64,8 +60,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 		this.lightSwitch = lswitch;
 		CreateStubs();
-
-		this.timestamp = 0;
 	}
 
 	public Bank.Ack buildAck() {
@@ -76,7 +70,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 		ManagedChannel channel;
 		for (String target : SyncBanksTargets) {
 			channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
-			SyncBanksManagedChannels.add(channel);
 			SyncBanksStubs.add(SyncBanksServiceGrpc.newBlockingStub(channel));
 		}
 	}
@@ -94,7 +87,6 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 	@Override
 	public void openAccount(Bank.OpenAccountRequest request,
 			StreamObserver<Bank.OpenAccountResponse> responseObserver) {
-
 		// DOS protections
 		try {
 			PublicKey pubKey = Crypto.decodePublicKey(request.getPublicKey());
@@ -105,16 +97,14 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			return;
 		}
 
-		int currentTS = timestamp;
+		int currentTS = 0;
 		SyncBanks.OpenAccountIntentRequest.Builder intentRequest = SyncBanks.OpenAccountIntentRequest.newBuilder();
 		intentRequest.setOpenAccountRequest(request);
-		intentRequest.setTimestamp(timestamp);
 		// send intents to all servers
 		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
 			logger.info("Bank Service: Sent Open Account Sync");
-			stub.openAccountSync(intentRequest.build());
+			currentTS = stub.openAccountSync(intentRequest.build()).getTimestamp();
 		}
-		timestamp++;
 		logger.info("Bank Service: Waiting for Open Account Response");
 		while (OpenAccountResponses.get(currentTS) == null) {
 			try {
@@ -190,7 +180,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 
 	@Override
 	public void openAccountSyncRequest(Bank.OpenAccountSync request, StreamObserver<Bank.Ack> responseObserver) {
-		logger.info("Got Sync Request: " + request.getTimestamp());
+		logger.info("Got Sync Request: " + request.getTimestamp() + " and status: " + request.getOpenAccountResponse().getStatus());
 		Bank.OpenAccountResponse response = request.getOpenAccountResponse();
 		OpenAccountResponses.put(request.getTimestamp(), response);
 		responseObserver.onNext(buildAck());
@@ -323,15 +313,13 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			return;
 		}
 
-		int currentTS = timestamp;
+		int currentTS = 0;
 		SyncBanks.SendAmountIntentRequest.Builder intentRequest = SyncBanks.SendAmountIntentRequest.newBuilder();
 		intentRequest.setSendAmountRequest(request);
-		intentRequest.setTimestamp(timestamp);
 		// send intents to all servers
 		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
-			stub.sendAmountSync(intentRequest.build());
+			currentTS = stub.sendAmountSync(intentRequest.build()).getTimestamp();
 		}
-		timestamp++;
 
 		while (SendAmountResponses.get(currentTS) == null) {
 			try {
@@ -476,15 +464,14 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 			return;
 		}
 
-		int currentTS = timestamp;
+		int currentTS = 0;
 		SyncBanks.ReceiveAmountIntentRequest.Builder intentRequest = SyncBanks.ReceiveAmountIntentRequest.newBuilder();
 		intentRequest.setReceiveAmountRequest(request);
-		intentRequest.setTimestamp(timestamp);
 		// send intents to all servers
 		for (SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub : SyncBanksStubs) {
-			stub.receiveAmountSync(intentRequest.build());
+			currentTS = stub.receiveAmountSync(intentRequest.build()).getTimestamp();
 		}
-		timestamp++;
+
 		while (ReceiveAmountResponses.get(currentTS) == null) {
 			try {
 				Thread.sleep(100);

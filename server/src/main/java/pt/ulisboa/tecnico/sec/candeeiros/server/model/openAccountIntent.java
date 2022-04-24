@@ -11,6 +11,7 @@ public class openAccountIntent {
     private ArrayList<Bank.OpenAccountResponse.Status> statuses;
     private final HashMap<Bank.OpenAccountResponse.Status, Integer> occurrences;
     private Bank.OpenAccountResponse.Status majority;
+    private boolean majorityChecked;
 
     public openAccountIntent(int timestamp, Bank.OpenAccountRequest request) {
         this.timestamp = timestamp;
@@ -18,6 +19,7 @@ public class openAccountIntent {
         this.statuses = new ArrayList<>();
         this.occurrences = new HashMap<>();
         this.majority = null;
+        this.majorityChecked = false;
     }
 
     public int getTimestamp() {
@@ -61,10 +63,12 @@ public class openAccountIntent {
     }
 
     public boolean hasMajority(int totalServers) {
+        if(majorityChecked) return false;
         return totalServers %2==0 ? occurrences.get(majority) >= (Math.ceil((double)(totalServers+1)/2)) : occurrences.get(majority) >= (Math.ceil((double)(totalServers)/2));
     }
 
     public Bank.OpenAccountResponse.Status getMajority() {
         return majority;
     }
+    public void majorityChecked() { majorityChecked = true;}
 }

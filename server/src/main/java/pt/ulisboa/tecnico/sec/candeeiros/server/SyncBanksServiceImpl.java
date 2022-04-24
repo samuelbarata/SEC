@@ -21,7 +21,6 @@ import java.math.BigDecimal;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -37,20 +36,22 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     private final ConcurrentHashMap<Integer, ArrayList<openAccountIntent>> openAccountIntents;
     private final ConcurrentHashMap<Integer, Bank.OpenAccountResponse> openAccountResponses;
     private final ConcurrentHashMap<SyncBanks.OpenAccountAppliedRequest, Integer> openAppliedCounter;
+    private final ArrayList<SyncBanks.OpenAccountIntentRequest> openAccountOriginalsSync;
 
     //Send Amount Storages
     private final ConcurrentHashMap<Integer, ArrayList<sendAmountIntent>> sendAmountIntents;
     private final ConcurrentHashMap<Integer, Bank.SendAmountResponse> sendAmountResponses;
     private final ConcurrentHashMap<SyncBanks.SendAmountAppliedRequest, Integer> sendAmountAppliedCounter;
+    private final ArrayList<SyncBanks.SendAmountIntentRequest> sendAmountOriginalsSync;
 
     //Receive Amount Storages
     private final ConcurrentHashMap<Integer, ArrayList<receiveAmountIntent>> receiveAmountIntents;
     private final ConcurrentHashMap<Integer, Bank.ReceiveAmountResponse> receiveAmountResponses;
     private final ConcurrentHashMap<SyncBanks.ReceiveAmountAppliedRequest, Integer> receiveAmountAppliedCounter;
+    private final ArrayList<SyncBanks.ReceiveAmountIntentRequest> receiveAmountOriginalsSync;
 
     //Communication between SyncBanks
     private final List<String> SyncBanksTargets;
-    private final ArrayList<ManagedChannel> SyncBanksManagedChannels;
     private final ArrayList<SyncBanksServiceGrpc.SyncBanksServiceBlockingStub> SyncBanksStubs;
 
     //Communication between Banks
@@ -63,20 +64,22 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
     SyncBanksServiceImpl(String ledgerFileName, KeyManager keyManager, int totalServers, String bankTarget, int port) throws IOException {
         super();
-        timestamp = 0;
+        timestamp = -1;
         this.bank = new BftBank(ledgerFileName);
         this.BankTarget = bankTarget;
 
         this.openAccountIntents = new ConcurrentHashMap<>();
         this.openAccountResponses = new ConcurrentHashMap<>();
+        this.openAccountOriginalsSync = new ArrayList<>();
 
         this.sendAmountIntents = new ConcurrentHashMap<>();
         this.sendAmountResponses = new ConcurrentHashMap<>();
+        this.sendAmountOriginalsSync = new ArrayList<>();
 
         this.receiveAmountIntents = new ConcurrentHashMap<>();
         this.receiveAmountResponses = new ConcurrentHashMap<>();
+        this.receiveAmountOriginalsSync = new ArrayList<>();
 
-        this.SyncBanksManagedChannels = new ArrayList<>();
         this.SyncBanksTargets = new ArrayList<>();
         this.SyncBanksStubs = new ArrayList<>();
 
@@ -101,7 +104,6 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         for(String target: SyncBanksTargets) {
             channel = ManagedChannelBuilder.forTarget(target).usePlaintext().build();
-            SyncBanksManagedChannels.add(channel);
             SyncBanksStubs.add(SyncBanksServiceGrpc.newBlockingStub(channel));
         }
 
@@ -112,6 +114,10 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
     public Bank.Ack buildAck() {
         return Bank.Ack.newBuilder().build();
+    }
+
+    public Bank.Ack buildAck(int timestamp) {
+        return Bank.Ack.newBuilder().setTimestamp(timestamp).build();
     }
     // ***** Authenticated procedures *****
 
@@ -154,20 +160,42 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     }
 
     public Bank.OpenAccountResponse openAccountResponseBuilder(Bank.OpenAccountResponse.Status status) {
+        // Create new Open Account Response
         Bank.OpenAccountResponse.Builder request = Bank.OpenAccountResponse.newBuilder();
         request.setStatus(status);
 
+        //Security (signing, nonces)
+
+
+        //Return
 
         return request.build();
     }
 
+    public SyncBanks.OpenAccountIntentRequest openAccountRequestBuilder(SyncBanks.OpenAccountIntentRequest request) {
+        //Create new Open Account Intent Request
+        SyncBanks.OpenAccountIntentRequest.Builder newRequest = SyncBanks.OpenAccountIntentRequest.newBuilder();
+        newRequest.setOpenAccountRequest(request.getOpenAccountRequest());
+        newRequest.setTimestamp(this.timestamp + 1);
+
+        //Security (signing, nonces)
+
+
+        //Return
+        openAccountOriginalsSync.add(newRequest.build());
+        return newRequest.build();
+    }
+
     @Override
     public void openAccountSync(SyncBanks.OpenAccountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
+
+        SyncBanks.OpenAccountIntentRequest newRequest = openAccountRequestBuilder(request);
+        responseObserver.onNext(buildAck(newRequest.getTimestamp()));
         responseObserver.onCompleted();
+        logger.info("OpenAccountSync: Sent Open Account Intent with TS: " + newRequest.getTimestamp());
         for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
         {
-            stub.openAccountIntent(request);
+            stub.openAccountIntent(newRequest);
         }
     }
 
@@ -175,13 +203,24 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     public void openAccountIntent(SyncBanks.OpenAccountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
+
         // receive intent to open account
+
         logger.info("Open Account: Got Intent"); //TODO add from which server id it got
+
+        Bank.OpenAccountResponse.Status status = null;
+
+        if(openAccountIntents.containsKey(request.getTimestamp()) || request.getTimestamp() <= this.timestamp) {
+            status = Bank.OpenAccountResponse.Status.INVALID_TIMESTAMP;
+        } else {
+            this.timestamp = request.getTimestamp();
+        }
+
         openAccountIntents.computeIfAbsent(request.getTimestamp(), k -> new ArrayList<>());
         openAccountIntents.get(request.getTimestamp()).add(new openAccountIntent(request.getTimestamp(), request.getOpenAccountRequest()));
 
-        // check status if account can be opened
-        Bank.OpenAccountResponse.Status status = openAccountStatus(request.getOpenAccountRequest());
+        // if timestamp is valid check status if account can be opened
+        if(status == null) status = openAccountStatus(request.getOpenAccountRequest());
 
         // send status to all other servers
         SyncBanks.OpenAccountStatusRequest.Builder statusRequest = SyncBanks.OpenAccountStatusRequest.newBuilder();
@@ -222,6 +261,19 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         // check if majority was achieved
         if(currentIntent.hasMajority(totalServers)) {
+            currentIntent.majorityChecked();
+            if(currentIntent.getMajority()==Bank.OpenAccountResponse.Status.INVALID_TIMESTAMP) {
+                logger.info("Invalid Timestamp");
+                for (SyncBanks.OpenAccountIntentRequest intentRequest : openAccountOriginalsSync) {
+                    if (intentRequest.getOpenAccountRequest().equals(request.getOpenAccountRequest())) {
+                        Bank.OpenAccountSync.Builder syncResponse = Bank.OpenAccountSync.newBuilder();
+                        syncResponse.setOpenAccountResponse(openAccountResponseBuilder(request.getOpenAccountResponse().getStatus()));
+                        syncResponse.setTimestamp(currentIntent.getTimestamp());
+                        BankStub.openAccountSyncRequest(syncResponse.build());
+                    }
+                }
+                return;
+            }
             openAccountResponses.put(request.getTimestamp(), request.getOpenAccountResponse());
             // if so, apply
             if(currentIntent.getMajority()==Bank.OpenAccountResponse.Status.SUCCESS)
@@ -325,13 +377,23 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         return request.build();
     }
 
+    public SyncBanks.SendAmountIntentRequest sendAmountIntentRequestBuilder(SyncBanks.SendAmountIntentRequest request) {
+        SyncBanks.SendAmountIntentRequest.Builder newRequest = SyncBanks.SendAmountIntentRequest.newBuilder();
+        newRequest.setSendAmountRequest(request.getSendAmountRequest());
+        newRequest.setTimestamp(this.timestamp + 1);
+
+        return newRequest.build();
+    }
+
     @Override
     public void sendAmountSync(SyncBanks.SendAmountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
+        SyncBanks.SendAmountIntentRequest newRequest = sendAmountIntentRequestBuilder(request);
+        responseObserver.onNext(buildAck(newRequest.getTimestamp()));
         responseObserver.onCompleted();
+        logger.info("SendAmountSync: Sent Send Amount Intent with TS: " + newRequest.getTimestamp());
         for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
         {
-            stub.sendAmountIntent(request);
+            stub.sendAmountIntent(newRequest);
         }
     }
 
@@ -341,10 +403,22 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onCompleted();
 
         // receive intent to send amount
+
+        logger.info("Send Amount: Got Intent");
+
+        Bank.SendAmountResponse.Status status = null;
+
+        if(sendAmountIntents.containsKey(request.getTimestamp()) || request.getTimestamp() <= this.timestamp) {
+            status = Bank.SendAmountResponse.Status.INVALID_TIMESTAMP;
+        } else {
+            this.timestamp = request.getTimestamp();
+        }
+
         sendAmountIntents.computeIfAbsent(request.getTimestamp(), k -> new ArrayList<>());
         sendAmountIntents.get(request.getTimestamp()).add(new sendAmountIntent(request.getTimestamp(), request.getSendAmountRequest()));
-        // check status if money can be sent
-        Bank.SendAmountResponse.Status status = sendAmountStatus(request.getSendAmountRequest());
+
+        // if timestamp is valid check status if amount can be sent
+        if(status == null) status = sendAmountStatus(request.getSendAmountRequest());
 
         // send status to all other servers
         SyncBanks.SendAmountStatusRequest.Builder statusRequest = SyncBanks.SendAmountStatusRequest.newBuilder();
@@ -362,8 +436,8 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     public void sendAmountStatus(SyncBanks.SendAmountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
-
         logger.info("Send Amount: Got Status");
+
         sendAmountIntent currentIntent = null;
 
         while(currentIntent == null) {
@@ -385,6 +459,19 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         // check if majority was achieved
         if(currentIntent.hasMajority(totalServers)) {
+            currentIntent.majorityChecked();
+            if(currentIntent.getMajority()==Bank.SendAmountResponse.Status.INVALID_TIMESTAMP) {
+                logger.info("Invalid Timestamp");
+                for (SyncBanks.SendAmountIntentRequest intentRequest : sendAmountOriginalsSync) {
+                    if (intentRequest.getSendAmountRequest().equals(request.getSendAmountRequest())) {
+                        Bank.SendAmountSync.Builder syncResponse = Bank.SendAmountSync.newBuilder();
+                        syncResponse.setSendAmountResponse(sendAmountResponseBuilder(request.getSendAmountResponse().getStatus()));
+                        syncResponse.setTimestamp(currentIntent.getTimestamp());
+                        BankStub.sendAmountSyncRequest(syncResponse.build());
+                    }
+                }
+                return;
+            }
             sendAmountResponses.put(request.getTimestamp(), request.getSendAmountResponse());
             // if so, apply
             if(currentIntent.getMajority()==Bank.SendAmountResponse.Status.SUCCESS)
@@ -420,13 +507,6 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     }
 
     // ***** Receive Amount
-    public Bank.ReceiveAmountResponse receiveAmountResponseBuilder(Bank.ReceiveAmountResponse.Status status) {
-        Bank.ReceiveAmountResponse.Builder request = Bank.ReceiveAmountResponse.newBuilder();
-        request.setStatus(status);
-
-        return request.build();
-    }
-
 
     private Bank.ReceiveAmountResponse.Status receiveAmountStatus(Bank.ReceiveAmountRequest request) {
         try {
@@ -493,13 +573,34 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         }
     }
 
+    public Bank.ReceiveAmountResponse receiveAmountResponseBuilder(Bank.ReceiveAmountResponse.Status status) {
+        Bank.ReceiveAmountResponse.Builder request = Bank.ReceiveAmountResponse.newBuilder();
+        request.setStatus(status);
+
+        return request.build();
+    }
+
+    public SyncBanks.ReceiveAmountIntentRequest receiveAmountIntentRequestBuilder(SyncBanks.ReceiveAmountIntentRequest request) {
+        SyncBanks.ReceiveAmountIntentRequest.Builder newRequest = SyncBanks.ReceiveAmountIntentRequest.newBuilder();
+        newRequest.setReceiveAmountRequest(request.getReceiveAmountRequest());
+        newRequest.setTimestamp(this.timestamp + 1);
+
+
+        return newRequest.build();
+    }
+
     @Override
     public void receiveAmountSync(SyncBanks.ReceiveAmountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
+        SyncBanks.ReceiveAmountIntentRequest newRequest = receiveAmountIntentRequestBuilder(request);
+
+        responseObserver.onNext(buildAck(newRequest.getTimestamp()));
         responseObserver.onCompleted();
+
+        logger.info("ReceiveAmountSync: Sent Receive Amount Intent with TS: " + newRequest.getTimestamp());
+
         for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
         {
-            stub.receiveAmountIntent(request);
+            stub.receiveAmountIntent(newRequest);
         }
     }
 
@@ -509,13 +610,22 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
         responseObserver.onCompleted();
 
         // receive intent to send amount
+
+        logger.info("Send Amount: Got Intent");
+
+        Bank.ReceiveAmountResponse.Status status = null;
+
+        if(receiveAmountIntents.containsKey(request.getTimestamp()) || request.getTimestamp() <= this.timestamp) {
+            status = Bank.ReceiveAmountResponse.Status.INVALID_TIMESTAMP;
+        } else {
+            this.timestamp = request.getTimestamp();
+        }
+
         receiveAmountIntents.computeIfAbsent(request.getTimestamp(), k -> new ArrayList<>());
         receiveAmountIntents.get(request.getTimestamp()).add(new receiveAmountIntent(request.getTimestamp(), request.getReceiveAmountRequest()));
 
-        // check status if money can be sent
-
-        // check status if money can be received
-        Bank.ReceiveAmountResponse.Status status = receiveAmountStatus(request.getReceiveAmountRequest());
+        // if timestamp is valid check status if amount can be received
+        if(status == null) status = receiveAmountStatus(request.getReceiveAmountRequest());
 
         // send status to all other servers
         SyncBanks.ReceiveAmountStatusRequest.Builder statusRequest = SyncBanks.ReceiveAmountStatusRequest.newBuilder();
@@ -556,6 +666,20 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         // check if majority was achieved
         if(currentIntent.hasMajority(totalServers)) {
+            currentIntent.majorityChecked();
+            if(currentIntent.getMajority()==Bank.ReceiveAmountResponse.Status.INVALID_TIMESTAMP) {
+                logger.info("Invalid Timestamp");
+                for (SyncBanks.ReceiveAmountIntentRequest intentRequest : receiveAmountOriginalsSync) {
+                    if (intentRequest.getReceiveAmountRequest().equals(request.getReceiveAmountRequest())) {
+                        Bank.ReceiveAmountSync.Builder syncResponse = Bank.ReceiveAmountSync.newBuilder();
+                        syncResponse.setReceiveAmountResponse(receiveAmountResponseBuilder(request.getReceiveAmountResponse().getStatus()));
+                        syncResponse.setTimestamp(currentIntent.getTimestamp());
+                        BankStub.receiveAmountSyncRequest(syncResponse.build());
+                    }
+                }
+                return;
+            }
+
             receiveAmountResponses.put(request.getTimestamp(), request.getReceiveAmountResponse());
             // if so, apply
             if(currentIntent.getMajority()==Bank.ReceiveAmountResponse.Status.SUCCESS)
