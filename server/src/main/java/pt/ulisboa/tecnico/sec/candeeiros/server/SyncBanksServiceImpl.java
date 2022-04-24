@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceImplBase {
 
-    private static final Logger logger = LoggerFactory.getLogger(BankServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(SyncBanksServiceImpl.class);
 
     private int timestamp;
     private final BftBank bank;
