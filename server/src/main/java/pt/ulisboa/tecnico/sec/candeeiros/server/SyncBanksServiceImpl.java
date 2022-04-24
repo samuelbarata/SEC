@@ -201,8 +201,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         // receive intent to open account
 
-        logger.info("Open Account: Got Intent"); //TODO add from which server id it got
-
+        logger.info("Open Account: Got Intent");
         Bank.OpenAccountResponse.Status status = null;
 
         if(openAccountIntents.containsKey(request.getTimestamp()) || request.getTimestamp() <= this.timestamp) {
@@ -234,7 +233,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     public synchronized void openAccountStatus(SyncBanks.OpenAccountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
-        logger.info("Open Account: Got Status"); //TODO add from which server id it got
+        logger.info("Open Account: Got Status");
 
         OpenAccountIntent currentIntent = null;
         while(openAccountIntents.get(request.getTimestamp())==null) {
@@ -297,7 +296,7 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     public void openAccountApplied(SyncBanks.OpenAccountAppliedRequest request, StreamObserver<Bank.Ack> responseObserver) {
         responseObserver.onNext(buildAck());
         responseObserver.onCompleted();
-        logger.info("Open Account: Got Applied"); //TODO add from which server id it got
+        logger.info("Open Account: Got Applied");
         // add to applied array of this open account applied
         openAppliedCounter.merge(request, 1, Integer::sum);
         // check if majority was achieved
