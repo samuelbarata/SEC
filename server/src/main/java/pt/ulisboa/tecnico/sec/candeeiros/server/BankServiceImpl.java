@@ -116,7 +116,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 				}
 			}
 			responseSync = OpenAccountResponses.get(currentTS);
-		} while(responseSync.getStatus() != Bank.OpenAccountResponse.Status.INVALID_TIMESTAMP);
+		} while(responseSync.getStatus() == Bank.OpenAccountResponse.Status.INVALID_TIMESTAMP);
 
 		Bank.OpenAccountResponse.Builder response = Bank.OpenAccountResponse.newBuilder()
 				.setStatus(responseSync.getStatus());
@@ -188,7 +188,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 				}
 			}
 			responseSync = SendAmountResponses.get(currentTS);
-		} while (responseSync.getStatus() != Bank.SendAmountResponse.Status.INVALID_TIMESTAMP);
+		} while (responseSync.getStatus() == Bank.SendAmountResponse.Status.INVALID_TIMESTAMP);
 
 		Bank.SendAmountResponse.Builder response = Bank.SendAmountResponse.newBuilder()
 				.setStatus(responseSync.getStatus());
@@ -252,7 +252,7 @@ public class BankServiceImpl extends BankServiceGrpc.BankServiceImplBase {
 				}
 			}
 			responseSync = ReceiveAmountResponses.get(currentTS);
-		} while (responseSync.getStatus() != Bank.ReceiveAmountResponse.Status.INVALID_TIMESTAMP);
+		} while (responseSync.getStatus() == Bank.ReceiveAmountResponse.Status.INVALID_TIMESTAMP);
 
 		Bank.ReceiveAmountResponse.Builder response = Bank.ReceiveAmountResponse.newBuilder()
 				.setStatus(responseSync.getStatus());

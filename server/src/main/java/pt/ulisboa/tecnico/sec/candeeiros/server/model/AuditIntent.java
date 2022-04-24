@@ -31,7 +31,7 @@ public class AuditIntent {
         } else if (occurrences.get(majority) < occurrences.get(timestamp)) {
             majority = timestamp;
         }
-        System.out.println(occurrences);
+
         if(this.majorityChecked) return false;
         return totalServers %2==0 ? occurrences.get(majority) >= (Math.ceil((double)(totalServers+1)/2)) : occurrences.get(majority) >= (Math.ceil((double)(totalServers)/2));
     }

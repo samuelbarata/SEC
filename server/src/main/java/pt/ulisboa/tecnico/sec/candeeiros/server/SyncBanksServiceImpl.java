@@ -185,19 +185,34 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     public void openAccountSync(SyncBanks.OpenAccountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
 
         SyncBanks.OpenAccountIntentRequest newRequest = openAccountRequestBuilder(request);
-        responseObserver.onNext(buildAck(newRequest.getTimestamp()));
-        responseObserver.onCompleted();
+
+        try{
+            responseObserver.onNext(buildAck(newRequest.getTimestamp()));
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
+
         logger.info("OpenAccountSync: Sent Open Account Intent with TS: " + newRequest.getTimestamp());
         for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
         {
-            stub.openAccountIntent(newRequest);
+            try{
+                stub.openAccountIntent(newRequest);
+            } catch (Exception e) {
+                logger.info("Failed to connect to Sync Bank Server");
+            }
         }
     }
 
     @Override
     public void openAccountIntent(SyncBanks.OpenAccountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
+
 
         // receive intent to open account
 
@@ -225,14 +240,22 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
         {
-            stub.openAccountStatus(statusRequest.build());
+            try{
+                stub.openAccountStatus(statusRequest.build());
+            } catch (Exception e) {
+                logger.info("Failed to connect to Sync Bank Server");
+            }
         }
     }
 
     @Override
     public synchronized void openAccountStatus(SyncBanks.OpenAccountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
         logger.info("Open Account: Got Status");
 
         OpenAccountIntent currentIntent = null;
@@ -287,15 +310,24 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
             for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
             {
-                stub.openAccountApplied(appliedRequest.build());
+                try{
+                    stub.openAccountApplied(appliedRequest.build());
+                } catch (Exception e) {
+                    logger.info("Failed to connect to Sync Bank Server");
+                }
+
             }
         }
     }
 
     @Override
     public void openAccountApplied(SyncBanks.OpenAccountAppliedRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
         logger.info("Open Account: Got Applied");
         // add to applied array of this open account applied
         openAppliedCounter.merge(request, 1, Integer::sum);
@@ -401,19 +433,31 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     @Override
     public void sendAmountSync(SyncBanks.SendAmountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
         SyncBanks.SendAmountIntentRequest newRequest = sendAmountIntentRequestBuilder(request);
-        responseObserver.onNext(buildAck(newRequest.getTimestamp()));
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck(newRequest.getTimestamp()));
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
         logger.info("SendAmountSync: Sent Send Amount Intent with TS: " + newRequest.getTimestamp());
         for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
         {
-            stub.sendAmountIntent(newRequest);
+            try{
+                stub.sendAmountIntent(newRequest);
+            } catch (Exception e) {
+                logger.info("Failed to connect to Sync Bank Server");
+            }
         }
     }
 
     @Override
     public void sendAmountIntent(SyncBanks.SendAmountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
 
         // receive intent to send amount
 
@@ -441,14 +485,22 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
         {
-            stub.sendAmountStatus(statusRequest.build());
+            try{
+                stub.sendAmountStatus(statusRequest.build());
+            } catch (Exception e) {
+                logger.info("Failed to connect to Sync Bank Server");
+            }
         }
     }
 
     @Override
     public synchronized void sendAmountStatus(SyncBanks.SendAmountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
         logger.info("Send Amount: Got Status");
 
         SendAmountIntent currentIntent = null;
@@ -499,15 +551,23 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
             for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
             {
-                stub.sendAmountApplied(appliedRequest.build());
+                try{
+                    stub.sendAmountApplied(appliedRequest.build());
+                } catch (Exception e) {
+                    logger.info("Failed to connect to Sync Bank Server");
+                }
             }
         }
     }
 
     @Override
     public void sendAmountApplied(SyncBanks.SendAmountAppliedRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
         logger.info("Send Amount: Got Applied");
         // add to applied array of this send amount applied
         sendAmountAppliedCounter.merge(request, 1, Integer::sum);
@@ -618,22 +678,33 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
     @Override
     public void receiveAmountSync(SyncBanks.ReceiveAmountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
         SyncBanks.ReceiveAmountIntentRequest newRequest = receiveAmountIntentRequestBuilder(request);
-
-        responseObserver.onNext(buildAck(newRequest.getTimestamp()));
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck(newRequest.getTimestamp()));
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
 
         logger.info("ReceiveAmountSync: Sent Receive Amount Intent with TS: " + newRequest.getTimestamp());
 
         for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
         {
-            stub.receiveAmountIntent(newRequest);
+            try{
+                stub.receiveAmountIntent(newRequest);
+            } catch (Exception e) {
+                logger.info("Failed to connect to Sync Bank Server");
+            }
         }
     }
 
     @Override
     public void receiveAmountIntent(SyncBanks.ReceiveAmountIntentRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
 
         // receive intent to send amount
 
@@ -661,14 +732,22 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
         for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
         {
-            stub.receiveAmountStatus(statusRequest.build());
+            try{
+                stub.receiveAmountStatus(statusRequest.build());
+            } catch (Exception e) {
+                logger.info("Failed to connect to Sync Bank Server");
+            }
         }
     }
 
     @Override
     public synchronized void receiveAmountStatus(SyncBanks.ReceiveAmountStatusRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
 
         logger.info("Receive Amount: Got Status");
         ReceiveAmountIntent currentIntent = null;
@@ -720,15 +799,23 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
             for(SyncBanksServiceGrpc.SyncBanksServiceBlockingStub stub: SyncBanksStubs)
             {
-                stub.receiveAmountApplied(appliedRequest.build());
+                try{
+                    stub.receiveAmountApplied(appliedRequest.build());
+                } catch (Exception e) {
+                    logger.info("Failed to connect to Sync Bank Server");
+                }
             }
         }
     }
 
     @Override
     public void receiveAmountApplied(SyncBanks.ReceiveAmountAppliedRequest request, StreamObserver<Bank.Ack> responseObserver) {
-        responseObserver.onNext(buildAck());
-        responseObserver.onCompleted();
+        try{
+            responseObserver.onNext(buildAck());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            logger.info("Failed to connect to Sync Bank Server");
+        }
         logger.info("Receive Amount: Got Applied");
         // add to applied array of this send amount applied
         receiveAmountAppliedCounter.merge(request, 1, Integer::sum);
@@ -777,8 +864,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
             SyncBanks.CheckAccountSyncResponse responseSync = stub.checkAccountSync(request);
             if (intent.addResponse(responseSync.getTimestamp(), responseSync.getCheckAccountResponse(), totalServers)) {
                 logger.info("Check Account: Got Majority, sending to client");
-                responseObserver.onNext(intent.getMajority());
-                responseObserver.onCompleted();
+                try{
+                    responseObserver.onNext(intent.getMajority());
+                    responseObserver.onCompleted();
+                } catch (Exception e) {
+                    logger.info("Failed to connect to Sync Bank Server");
+                }
             }
         }
     }
@@ -829,8 +920,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
                 case INVALID_MESSAGE_FORMAT:
                     SyncResponse.setCheckAccountResponse(response.build());
                     SyncResponse.setTimestamp(timestamp);
-                    responseObserver.onNext(SyncResponse.build());
-                    responseObserver.onCompleted();
+                    try{
+                        responseObserver.onNext(SyncResponse.build());
+                        responseObserver.onCompleted();
+                    } catch (Exception e) {
+                        logger.info("Failed to connect to Sync Bank Server");
+                    }
                     return;
             }
 
@@ -852,8 +947,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
             SyncResponse.setCheckAccountResponse(response.build());
             SyncResponse.setTimestamp(this.timestamp);
-            responseObserver.onNext(SyncResponse.build());
-            responseObserver.onCompleted();
+            try{
+                responseObserver.onNext(SyncResponse.build());
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                logger.info("Failed to connect to Sync Bank Server");
+            }
             logger.info("Check Account answered");
         }
     }
@@ -882,8 +981,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
             SyncBanks.AuditSyncResponse responseSync = stub.auditSync(request);
             logger.info(request.toString());
             if (intent.addResponse(responseSync.getTimestamp(), responseSync.getAuditResponse(), totalServers)) {
-                responseObserver.onNext(intent.getMajority());
-                responseObserver.onCompleted();
+                try{
+                    responseObserver.onNext(intent.getMajority());
+                    responseObserver.onCompleted();
+                } catch (Exception e) {
+                    logger.info("Failed to connect to Sync Bank Server");
+                }
             }
         }
     }
@@ -939,8 +1042,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
                 case INVALID_MESSAGE_FORMAT:
                     SyncResponse.setAuditResponse(response.build());
                     SyncResponse.setTimestamp(timestamp);
-                    responseObserver.onNext(SyncResponse.build());
-                    responseObserver.onCompleted();
+                    try{
+                        responseObserver.onNext(SyncResponse.build());
+                        responseObserver.onCompleted();
+                    } catch (Exception e) {
+                        logger.info("Failed to connect to Sync Bank Server");
+                    }
                     return;
             }
 
@@ -960,8 +1067,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
 
             SyncResponse.setAuditResponse(response.build());
             SyncResponse.setTimestamp(this.timestamp);
-            responseObserver.onNext(SyncResponse.build());
-            responseObserver.onCompleted();
+            try{
+                responseObserver.onNext(SyncResponse.build());
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                logger.info("Failed to connect to Sync Bank Server");
+            }
             logger.info("Audit answered");
         }
     }
@@ -1008,8 +1119,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
                     response.setNonce(account.getNonce().encode());
                     break;
                 case INVALID_MESSAGE_FORMAT:
-                    responseObserver.onNext(response.build());
-                    responseObserver.onCompleted();
+                    try{
+                        responseObserver.onNext(response.build());
+                        responseObserver.onCompleted();
+                    } catch (Exception e) {
+                        logger.info("Failed to connect to Sync Bank Server");
+                    }
                     return;
             }
 
@@ -1025,9 +1140,12 @@ public class SyncBanksServiceImpl extends SyncBanksServiceGrpc.SyncBanksServiceI
                 // should never happen
                 e.printStackTrace();
             }
-
-            responseObserver.onNext(response.build());
-            responseObserver.onCompleted();
+            try{
+                responseObserver.onNext(response.build());
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                logger.info("Failed to connect to Sync Bank Server");
+            }
         }
     }
 }
