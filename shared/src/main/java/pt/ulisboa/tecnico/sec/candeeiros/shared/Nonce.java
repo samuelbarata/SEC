@@ -21,10 +21,10 @@ public class Nonce {
     public Nonce nextNonce() {
         byte[] bytes = this.bytes.clone();
 
-        int i = 0;
+        int i = -1;
         do {
-            bytes[i] += 1;
             i++;
+            bytes[i] += 1;
         } while (bytes[i] == 0 && i < bytes.length);
         return new Nonce(bytes);
     }

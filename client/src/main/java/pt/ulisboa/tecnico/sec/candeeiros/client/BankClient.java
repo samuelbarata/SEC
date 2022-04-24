@@ -99,6 +99,7 @@ public class BankClient {
                 .setAmount(amount)
                 .build();
 
+
         Nonce nextNonce = nonce.nextNonce();
 
         Bank.SendAmountRequest request = Bank.SendAmountRequest
@@ -114,7 +115,6 @@ public class BankClient {
                             )))
                     .build())
                 .build();
-
 
         Bank.SendAmountResponse response = stub.sendAmount(request);
 
