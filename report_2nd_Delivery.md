@@ -98,6 +98,10 @@ Denial of Service protection is implemented by the server only on the functions 
 We implemented DOS protection by blocking the account making the request and not the ip of the attacker just for simplicity. 
 We consider a burst of requests to be a DOS attack if it was under 400ms between requests.
 
+## Malicious User
+
+Assuming all the messages are signed, as was our intention, a malicious client cannot impersonate a server, therefore, not
+compromising the consistency of the system as a whole.
 
 ## Crash Recovery
 
