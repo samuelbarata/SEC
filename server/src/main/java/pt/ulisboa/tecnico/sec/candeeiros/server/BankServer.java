@@ -45,7 +45,7 @@ public class BankServer {
 
 		final LightSwitch lSwitch = new LightSwitch();
 
-		final BindableService impl = (BindableService) new BankServiceImpl(ledgeFileName, keyManager,
+		final BindableService impl = (BindableService) new BankServiceImpl(keyManager,
 				"localhost:" + (port + id), lSwitch);
 		final BindableService implSync = (BindableService) new SyncBanksServiceImpl(ledgeFileName, keyManager,
 				totalServers, "localhost:" + (port + id), port);

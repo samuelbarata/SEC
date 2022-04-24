@@ -8,7 +8,7 @@ import java.util.HashMap;
 public class receiveAmountIntent {
     private int timestamp;
     private Bank.ReceiveAmountRequest request;
-    private ArrayList<Bank.ReceiveAmountResponse.Status> statuses;
+    private final ArrayList<Bank.ReceiveAmountResponse.Status> statuses;
     private final HashMap<Bank.ReceiveAmountResponse.Status, Integer> occurrences;
     private Bank.ReceiveAmountResponse.Status majority;
     private boolean majorityChecked;
@@ -40,7 +40,6 @@ public class receiveAmountIntent {
 
     public void addStatus(Bank.ReceiveAmountResponse.Status newStatus) {
         statuses.add(newStatus);
-        System.out.println(statuses);
         // first time adding a status, to update majority
         if(majority == null) {
             occurrences.put(newStatus, 1);
