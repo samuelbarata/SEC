@@ -13,8 +13,8 @@ This is a gRPC application, composed of four modules:
 
 The project includes a makefile to simplify execution and testing:
 
- - Executing the server: `make server`
- - Executing interactive client: `make client 1 4200`
+ - Executing the server: `make server id=(server_id) total=(number_of_servers)`
+ - Executing interactive client: `make client id=(client_id) connect_to=(server_id)`
  - Run Basic Usage Tests: `make test`
  - Run Byzantine Tests: `make test_byzantine`
  - Run Persistence Tests: `make test_persistence` (tests if server state is the expected state after basic tests and byzantine tests)
@@ -31,7 +31,7 @@ Example Usage (where `#1` and `#2` are different terminals), showing intended te
 
 ```
 #1                    #2
-make server         |
+make server 0 1     |
                     | make test
                     | make test_byzantine
 # Ctrl-C            |
@@ -42,4 +42,127 @@ make corrupt_ledger |
 make server         | 
                     | make test_crash
                     | make test_dos
+```
+
+
+## Interactive Clients
+
+Example Usage with interactive clients and multiple servers (one line per terminal):
+```
+make server id=0 total=2
+make server id=1 total=2
+make client id=0 connect_to=0
+make client id=1 connect_to=1
+```
+
+Interactive client will prompt for commands. Example Usage:
+
+Client 1:
+```
+Found key in keystore. Loading it...
+1. Open Account
+2. Send Amount
+3. Receive Amount
+4. Check Account
+5. Audit Account
+6. Exit
+> 1
+Response: SUCCESS
+1. Open Account
+2. Send Amount
+3. Receive Amount
+4. Check Account
+5. Audit Account
+6. Exit
+> 2
+Enter file with receiver public key
+> ./keys/2/id.pub
+Enter the amount to send
+> 100
+Response: SUCCESS
+1. Open Account
+2. Send Amount
+3. Receive Amount
+4. Check Account
+5. Audit Account
+6. Exit
+> 4
+Enter file with public key to check (empty for self)
+> ./keys/2/id.pub
+Response: SUCCESS
+Balance: 1000
+Transaction: 100 from 15zB/131ne to UEm0rlaD5G
+1. Open Account
+2. Send Amount
+3. Receive Amount
+4. Check Account
+5. Audit Account
+6. Exit
+> 6
+```
+
+Client 2 (Must have opened account before client 1 sends amount): 
+```
+Found key in keystore. Loading it...
+1. Open Account
+2. Send Amount
+3. Receive Amount
+4. Check Account
+5. Audit Account
+6. Exit
+> 1
+Response: SUCCESS
+1. Open Account
+2. Send Amount
+3. Receive Amount
+4. Check Account
+5. Audit Account
+6. Exit
+> 4
+Enter file with public key to check (empty for self)
+>
+Response: SUCCESS
+Balance: 1000
+Transaction: 100 from 15zB/131ne to UEm0rlaD5G
+1. Open Account
+2. Send Amount
+3. Receive Amount
+4. Check Account
+5. Audit Account
+6. Exit
+> 3
+Enter file with sender public key
+> ./keys/1/id.pub
+Enter the amount to receive
+> 100
+Response: SUCCESS
+1. Open Account
+2. Send Amount
+3. Receive Amount
+4. Check Account
+5. Audit Account
+6. Exit
+> 5
+Enter file with public key to audit (empty for self)
+>
+Response: SUCCESS
+Transaction: 100 from 15zB/131ne to UEm0rlaD5G
+1. Open Account
+2. Send Amount
+3. Receive Amount
+4. Check Account
+5. Audit Account
+6. Exit
+> 5
+Enter file with public key to audit (empty for self)
+> ./keys/1/id.pub
+Response: SUCCESS
+Transaction: 100 from 15zB/131ne to UEm0rlaD5G
+1. Open Account
+2. Send Amount
+3. Receive Amount
+4. Check Account
+5. Audit Account
+6. Exit
+> 6
 ```

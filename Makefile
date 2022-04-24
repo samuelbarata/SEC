@@ -46,10 +46,10 @@ test_crash:
 	mvn test -Dtarget=localhost:4200 -Dtest=CrashTest -DserverPublicKey=./keys/server/id.pub
 
 corrupt_ledger:
-	truncate -s -10 ./server/server.ledger
+	truncate -s -10 ./server/server0.ledger
 
 delete_ledger:
-	rm ./server/server.ledger
+	rm ./server/server*.ledger
 
 server/keys/certificate.crt server/keys/privateKey.key:
 	cd server/keys;\
