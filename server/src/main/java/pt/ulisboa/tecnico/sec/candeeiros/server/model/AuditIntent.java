@@ -22,10 +22,8 @@ public class AuditIntent {
             responses.put(timestamp, response);
             occurrences.put(timestamp, 1);
         }
-        else if(responses.get(timestamp) == response) {
+        else {
             occurrences.put(timestamp, occurrences.get(timestamp) + 1);
-        } else {
-            return false;
         }
 
         if(majority < 0) {

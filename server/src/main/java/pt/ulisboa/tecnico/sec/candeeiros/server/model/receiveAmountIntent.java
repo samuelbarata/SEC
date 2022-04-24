@@ -40,7 +40,7 @@ public class receiveAmountIntent {
 
     public void addStatus(Bank.ReceiveAmountResponse.Status newStatus) {
         statuses.add(newStatus);
-
+        System.out.println(statuses);
         // first time adding a status, to update majority
         if(majority == null) {
             occurrences.put(newStatus, 1);
