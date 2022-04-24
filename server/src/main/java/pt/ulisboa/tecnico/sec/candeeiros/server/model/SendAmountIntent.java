@@ -5,15 +5,15 @@ import pt.ulisboa.tecnico.sec.candeeiros.Bank;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class receiveAmountIntent {
+public class SendAmountIntent {
     private int timestamp;
-    private Bank.ReceiveAmountRequest request;
-    private final ArrayList<Bank.ReceiveAmountResponse.Status> statuses;
-    private final HashMap<Bank.ReceiveAmountResponse.Status, Integer> occurrences;
-    private Bank.ReceiveAmountResponse.Status majority;
+    private Bank.SendAmountRequest request;
+    private ArrayList<Bank.SendAmountResponse.Status> statuses;
+    private final HashMap<Bank.SendAmountResponse.Status, Integer> occurrences;
+    private Bank.SendAmountResponse.Status majority;
     private boolean majorityChecked;
 
-    public receiveAmountIntent(int timestamp, Bank.ReceiveAmountRequest request) {
+    public SendAmountIntent(int timestamp, Bank.SendAmountRequest request) {
         this.timestamp = timestamp;
         this.request = request;
         this.statuses = new ArrayList<>();
@@ -30,16 +30,17 @@ public class receiveAmountIntent {
         this.timestamp = timestamp;
     }
 
-    public Bank.ReceiveAmountRequest getRequest() {
+    public Bank.SendAmountRequest getRequest() {
         return request;
     }
 
-    public void setRequest(Bank.ReceiveAmountRequest request) {
+    public void setRequest(Bank.SendAmountRequest request) {
         this.request = request;
     }
 
-    public void addStatus(Bank.ReceiveAmountResponse.Status newStatus) {
+    public void addStatus(Bank.SendAmountResponse.Status newStatus) {
         statuses.add(newStatus);
+
         // first time adding a status, to update majority
         if(majority == null) {
             occurrences.put(newStatus, 1);
@@ -66,7 +67,7 @@ public class receiveAmountIntent {
         return totalServers %2==0 ? occurrences.get(majority) >= (Math.ceil((double)(totalServers+1)/2)) : occurrences.get(majority) >= (Math.ceil((double)(totalServers)/2));
     }
 
-    public Bank.ReceiveAmountResponse.Status getMajority() {
+    public Bank.SendAmountResponse.Status getMajority() {
         return majority;
     }
     public void majorityChecked() { majorityChecked = true;}
